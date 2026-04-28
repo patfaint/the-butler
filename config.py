@@ -18,11 +18,12 @@ def _require(key: str) -> str:
 
 
 # ── Discord ───────────────────────────────────────────────────────────────────
-# Read without raising at import time so non-bot tooling (migrations, tests,
-# scripts that only import the DB layer) can use config.py without Discord creds.
-DISCORD_TOKEN: str | None = os.getenv("DISCORD_TOKEN")
-_guild_id = os.getenv("GUILD_ID")
-GUILD_ID: int | None = int(_guild_id) if _guild_id else None
+# Private module-level reads — do NOT use these directly outside this module.
+# Use require_discord_token() and require_guild_id() instead, which validate
+# that the values are set before the bot connects.
+_DISCORD_TOKEN: str | None = os.getenv("DISCORD_TOKEN")
+_guild_id_raw = os.getenv("GUILD_ID")
+_GUILD_ID: int | None = int(_guild_id_raw) if _guild_id_raw else None
 
 
 def require_discord_token() -> str:

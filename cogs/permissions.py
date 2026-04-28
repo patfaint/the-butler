@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections import defaultdict
 from functools import wraps
@@ -17,6 +18,7 @@ from database.db import AsyncSessionLocal
 from database.models import GuildConfig
 
 T = TypeVar("T")
+log = logging.getLogger("butler.permissions")
 
 # ── Butler error messages ─────────────────────────────────────────────────────
 
@@ -190,15 +192,12 @@ async def handle_check_failure(
     Wire this up in each cog's ``cog_app_command_error`` method.
     Unexpected (non-check) errors are logged and surfaced as a generic ephemeral reply.
     """
-    import logging
-    log = logging.getLogger("butler.permissions")
-
     if isinstance(error, app_commands.CheckFailure):
         message = str(error) if str(error) else _MSG_ADMIN_ONLY
         embed = discord.Embed(description=message, colour=0xFF69B4)
         embed.set_footer(text="The Butler — At your service. 🎩")
     else:
-        log.exception("Unhandled app command error in '%s'", interaction.command, exc_info=error)
+        log.exception("Unhandled app command error in '%s'", interaction.command, exc_info=True)
         embed = discord.Embed(description=_MSG_UNEXPECTED, colour=0xFF69B4)
         embed.set_footer(text="The Butler — At your service. 🎩")
 
