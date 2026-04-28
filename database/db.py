@@ -1,5 +1,7 @@
 """Database session setup — async SQLAlchemy engine and session factory."""
 
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -25,7 +27,7 @@ async def init_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
 
-async def get_session() -> AsyncSession:  # type: ignore[return]
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
     """Async context-manager style session factory."""
     async with AsyncSessionLocal() as session:
-        yield session  # type: ignore[misc]
+        yield session

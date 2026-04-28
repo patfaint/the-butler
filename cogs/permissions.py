@@ -163,7 +163,7 @@ def cooldown(seconds: float, max_uses: int = 1) -> Callable[..., Any]:
     """Rate-limit a slash command to *max_uses* uses per *seconds* window per user."""
 
     async def predicate(interaction: discord.Interaction) -> bool:
-        bucket_key = f"{interaction.command.name}:{interaction.user.id}"  # type: ignore[union-attr]
+        bucket_key = f"{interaction.command.name if interaction.command else 'unknown'}:{interaction.user.id}"
         now = time.monotonic()
         window_start = now - seconds
         timestamps = _rate_limit_buckets[bucket_key]

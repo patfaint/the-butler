@@ -1,7 +1,7 @@
 """SQLAlchemy ORM models for The Butler bot."""
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Integer, String, Text
@@ -76,7 +76,7 @@ class Tribute(Base):
     sub_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     type: Mapped[str] = mapped_column(String(20), nullable=False, default="tribute")  # coffee/tribute/gift
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -92,7 +92,7 @@ class JailRecord(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     jailed_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    jailed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    jailed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
     release_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     released: Mapped[bool] = mapped_column(Boolean, default=False)
     _saved_roles: Mapped[Optional[str]] = mapped_column("saved_roles", Text, nullable=True)
