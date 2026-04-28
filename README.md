@@ -93,45 +93,67 @@ On first run, the bot will:
 
 ---
 
-## ☁️ Deploying on AWS
+## ☁️ Deploying on AWS EC2
 
-### Option A — EC2 (recommended for always-on)
+### One-line install (recommended)
 
-1. Launch an **EC2 t3.micro** instance (Amazon Linux 2 or Ubuntu 22.04).
-2. Install Python 3.11: `sudo dnf install python3.11` (or `apt install python3.11`)
-3. Clone this repo and follow steps 4–6 above.
-4. Set environment variables via **AWS Systems Manager Parameter Store** or a `.env` file (never commit secrets).
-5. Run as a systemd service:
-
-```ini
-# /etc/systemd/system/butler.service
-[Unit]
-Description=The Butler Discord Bot
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user/the-butler
-ExecStart=/home/ec2-user/the-butler/venv/bin/python bot.py
-EnvironmentFile=/home/ec2-user/the-butler/.env
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+SSH into a fresh **EC2 t3.micro** (Amazon Linux 2023 or Ubuntu 22.04), then download and review the script before running it:
 
 ```bash
-sudo systemctl enable butler
-sudo systemctl start butler
+# Download and inspect the script first (recommended)
+curl -fsSL https://raw.githubusercontent.com/patfaint/the-butler/main/install.sh -o install.sh
+less install.sh          # review the contents
+sudo bash install.sh
 ```
 
-### Option B — AWS Lambda + EventBridge (for scheduled tasks only)
+Or clone the repo first and run the script directly:
 
-Scheduled commands (coffee reminders, VIP expiry checks) can be extracted into Lambda functions triggered by EventBridge rules. The main bot process still needs to run on EC2 or ECS.
+```bash
+git clone https://github.com/patfaint/the-butler.git
+sudo bash the-butler/install.sh
+```
+
+The script will:
+1. Update system packages and install Python 3.11, git, and screen
+2. Create a dedicated `butler` system user
+3. Clone the repo into `/home/butler/the-butler`
+4. Create a Python virtual environment and install all dependencies
+5. Prompt you interactively for `DISCORD_TOKEN`, `TENOR_API_KEY`, `GUILD_ID`, and `DATABASE_URL`
+6. Install and start a systemd service that keeps the bot alive and restarts it on reboot
+
+The script is **idempotent** — it is safe to run multiple times.
+
+### Useful commands after install
+
+```bash
+sudo systemctl status the-butler     # Check if the bot is running
+sudo journalctl -u the-butler -f     # Stream live logs
+sudo systemctl restart the-butler    # Restart the bot
+sudo bash /home/butler/the-butler/update.sh  # Pull latest code & restart
+```
+
+### Updating the bot
+
+```bash
+sudo bash /home/butler/the-butler/update.sh
+```
+
+This pulls the latest code from GitHub, reinstalls dependencies, and restarts the service automatically.
+
+### Manual setup (alternative)
+
+1. Launch an **EC2 t3.micro** instance (Amazon Linux 2023 or Ubuntu 22.04).
+2. Install Python 3.11, git, and pip manually.
+3. Clone this repo and follow the [Getting Started](#-getting-started) steps above.
+4. Set environment variables via a `.env` file (never commit secrets).
 
 ### Environment Variables on AWS
 
 Store secrets in **AWS Secrets Manager** or **SSM Parameter Store** and inject them as environment variables in your EC2 user data, ECS task definition, or Lambda configuration. Never hardcode tokens in source code.
+
+### Option B — AWS Lambda + EventBridge (for scheduled tasks only)
+
+Scheduled commands (coffee reminders, VIP expiry checks) can be extracted into Lambda functions triggered by EventBridge rules. The main bot process still needs to run on EC2 or ECS.
 
 ---
 
@@ -213,6 +235,8 @@ the-butler/
 ├── config.py               # Env var loader
 ├── requirements.txt
 ├── .env.example
+├── install.sh              # One-time EC2 setup script
+├── update.sh               # Pull latest code & restart service
 ├── README.md
 ├── cogs/
 │   ├── help.py             # /help paginated menu
