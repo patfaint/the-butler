@@ -23,6 +23,7 @@ AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
 
 async def init_db() -> None:
     """Create all tables if they do not already exist."""
+    from database import models  # noqa: F401  # Ensure ORM models are registered on Base.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

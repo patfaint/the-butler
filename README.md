@@ -169,7 +169,7 @@ Store secrets in **AWS Secrets Manager** or **SSM Parameter Store** and inject t
 | `/setdommerole @role` | Set the Domme role |
 | `/setsubrole @role` | Set the Sub role |
 | `/setjailrole @role` | Set the jail role |
-| `/setverificationchannel #channel` | Set the verification channel *(stub — Phase 2)* |
+| `/setverificationchannel #channel` | Set the verification channel |
 
 ### ℹ️ General
 | Command | Description |

@@ -29,6 +29,16 @@ class HelpPaginator(discord.ui.View):
     def _current_embed(self) -> discord.Embed:
         return help_page_embed(self.page, TOTAL_PAGES)
 
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        """Only the original invoker may press the pagination buttons."""
+        if interaction.user.id != self.interaction.user.id:
+            await interaction.response.send_message(
+                "These buttons belong to someone else, darling. 🎩",
+                ephemeral=True,
+            )
+            return False
+        return True
+
     # ── Buttons ───────────────────────────────────────────────────────────────
 
     @discord.ui.button(label="◀ Previous", style=discord.ButtonStyle.secondary)

@@ -5,23 +5,11 @@ from __future__ import annotations
 import discord
 from discord import app_commands
 from discord.ext import commands
-from sqlalchemy import select
 
 from cogs.permissions import handle_check_failure, is_admin
 from database.db import AsyncSessionLocal
-from database.models import GuildConfig
+from database.helpers import get_or_create_guild_config
 from utils.embeds import success_embed
-
-
-async def _get_or_create_config(session, guild_id: int) -> GuildConfig:
-    result = await session.execute(
-        select(GuildConfig).where(GuildConfig.guild_id == guild_id)
-    )
-    config = result.scalar_one_or_none()
-    if config is None:
-        config = GuildConfig(guild_id=guild_id)
-        session.add(config)
-    return config
 
 
 class VerificationCog(commands.Cog, name="Verification"):
@@ -48,7 +36,7 @@ class VerificationCog(commands.Cog, name="Verification"):
         channel: discord.TextChannel,
     ) -> None:
         async with AsyncSessionLocal() as session:
-            config = await _get_or_create_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild_id)
             config.verification_channel_id = channel.id
             await session.commit()
         await interaction.response.send_message(

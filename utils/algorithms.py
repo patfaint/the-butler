@@ -91,6 +91,9 @@ def calculate_coffee_amount(
 
     if drought_scaling:
         if last_coffee_at is not None:
+            # Normalize to UTC-aware so subtraction is always aware − aware.
+            if last_coffee_at.tzinfo is None:
+                last_coffee_at = last_coffee_at.replace(tzinfo=timezone.utc)
             days_since = (now - last_coffee_at).days
         else:
             days_since = 14  # No record → maximum drought multiplier

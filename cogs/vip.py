@@ -6,7 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from cogs.permissions import handle_check_failure, is_admin
+from cogs.permissions import handle_check_failure
 
 
 class VIPCog(commands.Cog, name="VIP"):

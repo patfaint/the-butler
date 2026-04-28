@@ -2,22 +2,18 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import time
 from collections import defaultdict
-from functools import wraps
-from typing import Any, Callable, Coroutine, TypeVar
+from typing import Any, Callable
 
 import discord
 from discord import app_commands
-from discord.ext import commands
 from sqlalchemy import select
 
 from database.db import AsyncSessionLocal
 from database.models import GuildConfig
 
-T = TypeVar("T")
 log = logging.getLogger("butler.permissions")
 
 # ── Butler error messages ─────────────────────────────────────────────────────

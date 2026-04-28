@@ -60,7 +60,7 @@ class SubProfile(Base):
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_puppy_sub: Mapped[bool] = mapped_column(Boolean, default=False)
-    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # ── Tributes ──────────────────────────────────────────────────────────────────
@@ -75,8 +75,8 @@ class Tribute(Base):
     domme_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     sub_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
-    type: Mapped[str] = mapped_column(String(20), nullable=False, default="tribute")  # coffee/tribute/gift
-    timestamp: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
+    tribute_type: Mapped[str] = mapped_column("type", String(20), nullable=False, default="tribute")  # coffee/tribute/gift
+    timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
 
 
@@ -92,8 +92,8 @@ class JailRecord(Base):
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     jailed_by: Mapped[int] = mapped_column(BigInteger, nullable=False)
     reason: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-    jailed_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(timezone.utc))
-    release_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    jailed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    release_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     released: Mapped[bool] = mapped_column(Boolean, default=False)
     _saved_roles: Mapped[Optional[str]] = mapped_column("saved_roles", Text, nullable=True)
 
@@ -119,7 +119,7 @@ class VIPRole(Base):
     guild_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     user_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
     role_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
-    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # ── Tribute streaks ───────────────────────────────────────────────────────────
@@ -134,4 +134,4 @@ class TributeStreak(Base):
     domme_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     current_streak: Mapped[int] = mapped_column(Integer, default=0)
     longest_streak: Mapped[int] = mapped_column(Integer, default=0)
-    last_tribute_date: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    last_tribute_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
