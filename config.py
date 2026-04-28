@@ -34,6 +34,7 @@ def require_guild_id() -> int:
 
 # ── External APIs ─────────────────────────────────────────────────────────────
 TENOR_API_KEY: str = os.getenv("TENOR_API_KEY", "")
+GIPHY_API_KEY: str = os.getenv("GIPHY_API_KEY", "")
 
 # ── Database ──────────────────────────────────────────────────────────────────
 DATABASE_URL: str = os.getenv(
