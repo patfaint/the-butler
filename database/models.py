@@ -22,9 +22,13 @@ class GuildConfig(Base):
     sub_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     admin_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     jail_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    verified_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    unverified_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    mod_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     welcome_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     leaderboard_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     verification_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
+    mod_verify_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     vip_role_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     announcement_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
 
@@ -32,14 +36,17 @@ class GuildConfig(Base):
 # ── Domme profiles ────────────────────────────────────────────────────────────
 
 class DommeProfile(Base):
-    """Per-domme configuration, set during the /setup wizard."""
+    """Per-domme configuration, set during the /domsetup wizard."""
 
     __tablename__ = "domme_profiles"
 
     discord_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     guild_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     display_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     throne_link: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    tribute_links: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     base_coffee_amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     time_scaling: Mapped[bool] = mapped_column(Boolean, default=False)
     day_scaling: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -58,6 +65,9 @@ class SubProfile(Base):
     discord_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     guild_id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    display_name: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    about: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     is_puppy_sub: Mapped[bool] = mapped_column(Boolean, default=False)
     joined_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

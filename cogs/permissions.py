@@ -21,7 +21,9 @@ log = logging.getLogger("butler.permissions")
 _MSG_DOMME_ONLY = "I'm afraid that command is reserved for the Dommes, darling. 🎩"
 _MSG_SUB_ONLY = "That command is for the subs only, I'm afraid. 🎩"
 _MSG_ADMIN_ONLY = "You don't have the authority for that, I'm afraid. 🎩"
+_MSG_MOD_ONLY = "That command is reserved for mods, I'm afraid. 🎩"
 _MSG_DOMME_OR_ADMIN_ONLY = "That command is reserved for Dommes and Admins only, darling. 🎩"
+_MSG_MOD_OR_DOMME_ONLY = "That command is reserved for Mods and Dommes only, darling. 🎩"
 _MSG_VERIFIED_ONLY = (
     "You'll need to complete the verification process first, darling. 🎩"
 )
@@ -59,6 +61,15 @@ async def _member_is_sub(member: discord.Member) -> bool:
     if config is None:
         return False
     return _member_has_role(member, config.sub_role_id)
+
+
+async def _member_is_mod(member: discord.Member) -> bool:
+    if member.guild_permissions.administrator:
+        return True
+    config = await _get_guild_config(member.guild.id)
+    if config is None:
+        return False
+    return _member_has_role(member, config.mod_role_id)
 
 
 async def _member_is_admin(member: discord.Member) -> bool:
@@ -127,6 +138,33 @@ def is_domme_or_admin() -> Callable[..., Any]:
         if await _member_is_domme(member) or await _member_is_admin(member):
             return True
         raise _ephemeral_error(_MSG_DOMME_OR_ADMIN_ONLY)
+
+    return app_commands.check(predicate)
+
+
+def is_mod() -> Callable[..., Any]:
+    """Slash-command check: the invoking member must have the configured Mod role or be an admin."""
+
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if not isinstance(interaction.user, discord.Member):
+            raise _ephemeral_error(_MSG_MOD_ONLY)
+        if await _member_is_mod(interaction.user):
+            return True
+        raise _ephemeral_error(_MSG_MOD_ONLY)
+
+    return app_commands.check(predicate)
+
+
+def is_mod_or_domme() -> Callable[..., Any]:
+    """Slash-command check: the invoking member is a mod OR a domme."""
+
+    async def predicate(interaction: discord.Interaction) -> bool:
+        if not isinstance(interaction.user, discord.Member):
+            raise _ephemeral_error(_MSG_MOD_OR_DOMME_ONLY)
+        member = interaction.user
+        if await _member_is_mod(member) or await _member_is_domme(member):
+            return True
+        raise _ephemeral_error(_MSG_MOD_OR_DOMME_ONLY)
 
     return app_commands.check(predicate)
 
