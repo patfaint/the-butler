@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import random
 from typing import Optional
@@ -88,6 +89,7 @@ class ReactionsCog(commands.Cog, name="Reactions"):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self._last_random_user: Optional[int] = None
+        self._random_lock = asyncio.Lock()
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message) -> None:
@@ -109,8 +111,13 @@ class ReactionsCog(commands.Cog, name="Reactions"):
 
         # ── Random 10% reaction (don't repeat the same user twice) ────────────
         if random.random() < _RANDOM_CHANCE:
-            if message.author.id != self._last_random_user:
-                self._last_random_user = message.author.id
+            async with self._random_lock:
+                if message.author.id != self._last_random_user:
+                    self._last_random_user = message.author.id
+                    should_react = True
+                else:
+                    should_react = False
+            if should_react:
                 query = random.choice(_RANDOM_POOL)
                 gif_url = await _fetch_gif(query)
                 if gif_url:

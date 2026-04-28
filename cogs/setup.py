@@ -145,6 +145,12 @@ class SetupCog(commands.Cog, name="Setup"):
     @is_domme()
     async def domsetup_command(self, interaction: discord.Interaction) -> None:
         user = interaction.user
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+        guild_id = interaction.guild.id
         await interaction.response.send_message(
             "📬 Check your DMs — The Butler will be in touch shortly. 🎩",
             ephemeral=True,
@@ -211,7 +217,6 @@ class SetupCog(commands.Cog, name="Setup"):
         bio = None if bio_raw.lower() == "skip" else bio_raw
 
         # Save to database
-        guild_id = interaction.guild_id
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(DommeProfile).where(
@@ -246,6 +251,12 @@ class SetupCog(commands.Cog, name="Setup"):
     @is_sub()
     async def subsetup_command(self, interaction: discord.Interaction) -> None:
         user = interaction.user
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+        guild_id = interaction.guild.id
         await interaction.response.send_message(
             "📬 Check your DMs — The Butler will be in touch shortly. 🎩",
             ephemeral=True,
@@ -301,7 +312,6 @@ class SetupCog(commands.Cog, name="Setup"):
         about = None if about_raw.lower() == "skip" else about_raw
 
         # Save to database
-        guild_id = interaction.guild_id
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(SubProfile).where(
