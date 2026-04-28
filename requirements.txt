@@ -1,0 +1,7 @@
+discord.py>=2.3.0
+SQLAlchemy>=2.0
+aiosqlite
+python-dotenv
+httpx
+beautifulsoup4
+apscheduler
