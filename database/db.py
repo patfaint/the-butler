@@ -1,0 +1,31 @@
+"""Database session setup — async SQLAlchemy engine and session factory."""
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.orm import DeclarativeBase
+
+from config import DATABASE_URL
+
+
+class Base(DeclarativeBase):
+    """Shared declarative base for all ORM models."""
+
+
+engine = create_async_engine(DATABASE_URL, echo=False)
+
+AsyncSessionLocal: async_sessionmaker[AsyncSession] = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False,
+)
+
+
+async def init_db() -> None:
+    """Create all tables if they do not already exist."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_session() -> AsyncSession:  # type: ignore[return]
+    """Async context-manager style session factory."""
+    async with AsyncSessionLocal() as session:
+        yield session  # type: ignore[misc]
