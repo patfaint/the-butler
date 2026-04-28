@@ -1,7 +1,5 @@
 """Reusable embed builders — all embeds use the pink server theme."""
 
-from typing import Optional
-
 import discord
 
 PINK = 0xFF69B4

@@ -23,10 +23,12 @@ T = TypeVar("T")
 _MSG_DOMME_ONLY = "I'm afraid that command is reserved for the Dommes, darling. 🎩"
 _MSG_SUB_ONLY = "That command is for the subs only, I'm afraid. 🎩"
 _MSG_ADMIN_ONLY = "You don't have the authority for that, I'm afraid. 🎩"
+_MSG_DOMME_OR_ADMIN_ONLY = "That command is reserved for Dommes and Admins only, darling. 🎩"
 _MSG_VERIFIED_ONLY = (
     "You'll need to complete the verification process first, darling. 🎩"
 )
 _MSG_COOLDOWN = "Please slow down. The Butler operates at his own pace. 🎩"
+_MSG_UNEXPECTED = "Something went wrong behind the scenes. The Butler is looking into it. 🎩"
 
 
 # ── Guild config helper ───────────────────────────────────────────────────────
@@ -122,11 +124,11 @@ def is_domme_or_admin() -> Callable[..., Any]:
 
     async def predicate(interaction: discord.Interaction) -> bool:
         if not isinstance(interaction.user, discord.Member):
-            raise _ephemeral_error(_MSG_DOMME_ONLY)
+            raise _ephemeral_error(_MSG_DOMME_OR_ADMIN_ONLY)
         member = interaction.user
         if await _member_is_domme(member) or await _member_is_admin(member):
             return True
-        raise _ephemeral_error(_MSG_DOMME_ONLY)
+        raise _ephemeral_error(_MSG_DOMME_OR_ADMIN_ONLY)
 
     return app_commands.check(predicate)
 
@@ -186,14 +188,21 @@ async def handle_check_failure(
     """Send the permission denial message ephemerally to the user.
 
     Wire this up in each cog's ``cog_app_command_error`` method.
+    Unexpected (non-check) errors are logged and surfaced as a generic ephemeral reply.
     """
+    import logging
+    log = logging.getLogger("butler.permissions")
+
     if isinstance(error, app_commands.CheckFailure):
         message = str(error) if str(error) else _MSG_ADMIN_ONLY
-        embed = discord.Embed(description=f"🎩 {message}", colour=0xFF69B4)
+        embed = discord.Embed(description=message, colour=0xFF69B4)
         embed.set_footer(text="The Butler — At your service. 🎩")
-        if interaction.response.is_done():
-            await interaction.followup.send(embed=embed, ephemeral=True)
-        else:
-            await interaction.response.send_message(embed=embed, ephemeral=True)
     else:
-        raise error
+        log.exception("Unhandled app command error in '%s'", interaction.command, exc_info=error)
+        embed = discord.Embed(description=_MSG_UNEXPECTED, colour=0xFF69B4)
+        embed.set_footer(text="The Butler — At your service. 🎩")
+
+    if interaction.response.is_done():
+        await interaction.followup.send(embed=embed, ephemeral=True)
+    else:
+        await interaction.response.send_message(embed=embed, ephemeral=True)

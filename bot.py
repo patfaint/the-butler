@@ -8,7 +8,7 @@ import logging
 import discord
 from discord.ext import commands
 
-from config import DISCORD_TOKEN, GUILD_ID
+from config import require_discord_token, require_guild_id
 from database.db import init_db
 
 # ── Logging ───────────────────────────────────────────────────────────────────
@@ -23,7 +23,6 @@ log = logging.getLogger("butler")
 
 COGS: list[str] = [
     "cogs.help",
-    "cogs.permissions",  # loaded for its helpers; exposes no commands itself
     "cogs.welcome",
     "cogs.setup",
     "cogs.throne",
@@ -52,7 +51,7 @@ class Butler(commands.Bot):
             intents=intents,
             help_command=None,    # We provide our own /help
         )
-        self.guild_id = GUILD_ID
+        self.guild_id = require_guild_id()
 
     async def setup_hook(self) -> None:
         """Called once before the bot connects — initialise DB and load cogs."""
@@ -93,7 +92,7 @@ class Butler(commands.Bot):
 
 async def main() -> None:
     async with Butler() as bot:
-        await bot.start(DISCORD_TOKEN)
+        await bot.start(require_discord_token())
 
 
 if __name__ == "__main__":

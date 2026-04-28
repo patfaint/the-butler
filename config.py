@@ -18,8 +18,22 @@ def _require(key: str) -> str:
 
 
 # ── Discord ───────────────────────────────────────────────────────────────────
-DISCORD_TOKEN: str = _require("DISCORD_TOKEN")
-GUILD_ID: int = int(_require("GUILD_ID"))
+# Read without raising at import time so non-bot tooling (migrations, tests,
+# scripts that only import the DB layer) can use config.py without Discord creds.
+DISCORD_TOKEN: str | None = os.getenv("DISCORD_TOKEN")
+_guild_id = os.getenv("GUILD_ID")
+GUILD_ID: int | None = int(_guild_id) if _guild_id else None
+
+
+def require_discord_token() -> str:
+    """Return the Discord token, validating it is set (call only at bot startup)."""
+    return _require("DISCORD_TOKEN")
+
+
+def require_guild_id() -> int:
+    """Return the Discord guild ID, validating it is set (call only at bot startup)."""
+    return int(_require("GUILD_ID"))
+
 
 # ── External APIs ─────────────────────────────────────────────────────────────
 TENOR_API_KEY: str = os.getenv("TENOR_API_KEY", "")
