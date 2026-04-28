@@ -216,7 +216,7 @@ class JailCog(commands.Cog, name="Jail"):
         async with AsyncSessionLocal() as session:
             result = await session.execute(
                 select(JailRecord).where(
-                    JailRecord.released == False,  # noqa: E712
+                    JailRecord.released.is_(False),
                     JailRecord.release_at <= now,
                 )
             )
@@ -252,7 +252,7 @@ class JailCog(commands.Cog, name="Jail"):
             query2 = select(JailRecord).where(
                 JailRecord.guild_id == guild.id,
                 JailRecord.user_id == user_id,
-                JailRecord.released == False,  # noqa: E712
+                JailRecord.released.is_(False),
             )
             if record_id is not None:
                 query2 = query2.where(JailRecord.id == record_id)

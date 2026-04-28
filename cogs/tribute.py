@@ -154,7 +154,7 @@ class TributeCog(commands.Cog, name="Tribute"):
                     Tribute.guild_id == interaction.guild.id,
                     Tribute.domme_id == interaction.user.id,
                     Tribute.sub_id == sub.id,
-                    Tribute.confirmed == False,  # noqa: E712
+                    Tribute.confirmed.is_(False),
                 )
                 .order_by(Tribute.timestamp.desc())
                 .limit(1)
@@ -259,7 +259,7 @@ class TributeCog(commands.Cog, name="Tribute"):
                 select(Tribute.sub_id, func.sum(Tribute.amount).label("total"))
                 .where(
                     Tribute.guild_id == interaction.guild.id,
-                    Tribute.confirmed == True,  # noqa: E712
+                    Tribute.confirmed.is_(True),
                 )
                 .group_by(Tribute.sub_id)
                 .order_by(func.sum(Tribute.amount).desc())
@@ -308,7 +308,7 @@ class TributeCog(commands.Cog, name="Tribute"):
                 .where(
                     Tribute.guild_id == interaction.guild.id,
                     Tribute.sub_id == interaction.user.id,
-                    Tribute.confirmed == True,  # noqa: E712
+                    Tribute.confirmed.is_(True),
                 )
             )
             total_given = given_result.scalar() or 0.0
@@ -319,7 +319,7 @@ class TributeCog(commands.Cog, name="Tribute"):
                 .where(
                     Tribute.guild_id == interaction.guild.id,
                     Tribute.domme_id == interaction.user.id,
-                    Tribute.confirmed == True,  # noqa: E712
+                    Tribute.confirmed.is_(True),
                 )
             )
             total_received = received_result.scalar() or 0.0
@@ -330,7 +330,7 @@ class TributeCog(commands.Cog, name="Tribute"):
                 .where(
                     Tribute.guild_id == interaction.guild.id,
                     Tribute.sub_id == interaction.user.id,
-                    Tribute.confirmed == True,  # noqa: E712
+                    Tribute.confirmed.is_(True),
                 )
             )
             tribute_count = count_result.scalar() or 0

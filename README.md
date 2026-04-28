@@ -275,16 +275,3 @@ the-butler/
     ├── embeds.py           # Reusable pink embed builders
     └── algorithms.py       # Coffee price dynamic algorithm
 ```
-
-
----
-
-## 🛠 Tech Stack
-
-- **Python 3.11+**
-- **discord.py ≥ 2.3** — slash commands via `app_commands`, modals, persistent views
-- **SQLAlchemy ≥ 2.0** (async) + **aiosqlite**
-- **discord.ext.tasks** — for timed events (jail auto-release, VIP expiry)
-- **httpx** — async HTTP client for Tenor API
-- **Tenor API** — for GIF reactions
-- **AWS** — environment variables for all secrets, no hardcoded values

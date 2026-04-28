@@ -98,7 +98,7 @@ class CoffeeCog(commands.Cog, name="Coffee"):
             sub_result = await session.execute(
                 select(SubProfile).where(
                     SubProfile.guild_id == interaction.guild.id,
-                    SubProfile.is_verified == True,  # noqa: E712
+                    SubProfile.is_verified.is_(True),
                 )
             )
             verified_subs = sub_result.scalars().all()

@@ -13,6 +13,18 @@ from database.models import DommeProfile
 from utils.embeds import base_embed, success_embed, error_embed
 
 
+def _modifier_text(time_scaling: bool, day_scaling: bool, drought_scaling: bool) -> str:
+    """Return a human-readable string of active dynamic pricing modifiers."""
+    modifiers = []
+    if time_scaling:
+        modifiers.append("time-of-day")
+    if day_scaling:
+        modifiers.append("day-of-week")
+    if drought_scaling:
+        modifiers.append("drought")
+    return ", ".join(modifiers) if modifiers else "none"
+
+
 # ── Modal ─────────────────────────────────────────────────────────────────────
 
 class SetupModal(discord.ui.Modal, title="🎩 Butler Profile Setup"):
@@ -98,8 +110,7 @@ class SetupModal(discord.ui.Modal, title="🎩 Butler Profile Setup"):
             await session.commit()
 
         # Build confirmation embed
-        modifiers = [m for flag, m in [(time_scaling, "time-of-day"), (day_scaling, "day-of-week"), (drought_scaling, "drought")] if flag]
-        modifier_text = ", ".join(modifiers) if modifiers else "none"
+        modifier_text = _modifier_text(time_scaling, day_scaling, drought_scaling)
 
         embed = base_embed(
             "🎩 Profile Configured",
@@ -172,8 +183,7 @@ class SetupCog(commands.Cog, name="Setup"):
             )
             return
 
-        modifiers = [m for flag, m in [(profile.time_scaling, "time-of-day"), (profile.day_scaling, "day-of-week"), (profile.drought_scaling, "drought")] if flag]
-        modifier_text = ", ".join(modifiers) if modifiers else "none"
+        modifier_text = _modifier_text(profile.time_scaling, profile.day_scaling, profile.drought_scaling)
 
         embed = base_embed(
             f"🎩 {profile.display_name}'s Profile",
