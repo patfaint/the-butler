@@ -1,4 +1,4 @@
-"""Moderation cog — admin /set* commands and rate limiting (stub for Phase 2)."""
+"""Moderation cog — admin /set* commands."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from database.helpers import get_or_create_guild_config
 from utils.embeds import success_embed
 
 class ModerationCog(commands.Cog, name="Moderation"):
-    """Admin configuration and anti-spam commands."""
+    """Admin configuration commands."""
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -71,6 +71,30 @@ class ModerationCog(commands.Cog, name="Moderation"):
             await session.commit()
         await interaction.response.send_message(
             embed=success_embed(f"Leaderboard channel set to {channel.mention}. 🎩"),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="setannouncementchannel",
+        description="Set the announcement channel used for coffee alerts. (Admin only)",
+    )
+    @is_admin()
+    async def set_announcement_channel(
+        self,
+        interaction: discord.Interaction,
+        channel: discord.TextChannel,
+    ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+        async with AsyncSessionLocal() as session:
+            config = await get_or_create_guild_config(session, interaction.guild.id)
+            config.announcement_channel_id = channel.id
+            await session.commit()
+        await interaction.response.send_message(
+            embed=success_embed(f"Announcement channel set to {channel.mention}. 🎩"),
             ephemeral=True,
         )
 
@@ -148,6 +172,55 @@ class ModerationCog(commands.Cog, name="Moderation"):
             ephemeral=True,
         )
 
+    @app_commands.command(
+        name="setadminrole",
+        description="Set the admin role. (Admin only)",
+    )
+    @is_admin()
+    async def set_admin_role(
+        self,
+        interaction: discord.Interaction,
+        role: discord.Role,
+    ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+        async with AsyncSessionLocal() as session:
+            config = await get_or_create_guild_config(session, interaction.guild.id)
+            config.admin_role_id = role.id
+            await session.commit()
+        await interaction.response.send_message(
+            embed=success_embed(f"Admin role set to {role.mention}. 🎩"),
+            ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="setviprole",
+        description="Set the VIP role used for time-limited grants. (Admin only)",
+    )
+    @is_admin()
+    async def set_vip_role(
+        self,
+        interaction: discord.Interaction,
+        role: discord.Role,
+    ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
+        async with AsyncSessionLocal() as session:
+            config = await get_or_create_guild_config(session, interaction.guild.id)
+            config.vip_role_id = role.id
+            await session.commit()
+        await interaction.response.send_message(
+            embed=success_embed(f"VIP role set to {role.mention}. 🎩"),
+            ephemeral=True,
+        )
+
 
 async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(ModerationCog(bot))
+

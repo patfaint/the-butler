@@ -46,6 +46,7 @@ class DommeProfile(Base):
     drought_scaling: Mapped[bool] = mapped_column(Boolean, default=False)
     leaderboard_channel_id: Mapped[Optional[int]] = mapped_column(BigInteger, nullable=True)
     setup_complete: Mapped[bool] = mapped_column(Boolean, default=False)
+    last_coffee_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 # ── Sub profiles ──────────────────────────────────────────────────────────────

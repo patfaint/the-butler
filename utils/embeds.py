@@ -4,7 +4,7 @@ import discord
 
 PINK = 0xFF69B4
 FOOTER_TEXT = "The Butler — At your service. 🎩"
-TOTAL_HELP_PAGES = 4  # Single source of truth for the help paginator page count.
+TOTAL_HELP_PAGES = 5  # Single source of truth for the help paginator page count.
 
 
 def base_embed(
@@ -79,12 +79,14 @@ def _build_help_pages() -> list[discord.Embed]:
     page1 = _page(
         "👑 Domme Commands",
         [
-            ("`/setup`", "Configure your Butler profile *(Domme only)*"),
-            ("`/coffee`", "Alert all subs you're seeking coffee *(Domme only)*"),
-            ("`/throne`", "Register or display your Throne wishlist link *(Domme only)*"),
-            ("`/confirm @sub $amount`", "Confirm a sub's tribute *(Domme only)*"),
-            ("`/jail @user <duration>`", "Send someone to jail *(Domme/Admin only)*"),
-            ("`/release @user`", "Release someone from jail early *(Domme/Admin only)*"),
+            ("`/setup`", "Configure your Butler profile — display name, Throne link, coffee amount & scaling"),
+            ("`/myprofile`", "View your current Butler profile"),
+            ("`/throne <link>`", "Register or update your Throne wishlist link"),
+            ("`/coffee`", "Alert all subs you're seeking coffee with dynamic pricing"),
+            ("`/confirm @sub $amount`", "Confirm a sub's tribute"),
+            ("`/jail @user <duration> [reason]`", "Send someone to jail (e.g. `1h`, `30m`, `2d`)"),
+            ("`/release @user`", "Release someone from jail early"),
+            ("`/givevip @member <duration>`", "Grant a member a time-limited VIP role"),
         ],
         1,
     )
@@ -92,34 +94,46 @@ def _build_help_pages() -> list[discord.Embed]:
     page2 = _page(
         "🐾 Sub Commands",
         [
-            ("`/tribute @domme $amount`", "Log a tribute to a domme"),
-            ("`/wishlist @domme`", "View a domme's Throne wishlist link"),
+            ("`/tribute @domme $amount`", "Submit a tribute to a Domme (awaits confirmation)"),
+            ("`/wishlist @domme`", "View a Domme's Throne wishlist link"),
             ("`/leaderboard`", "View the server tribute leaderboard"),
-            ("`/stats`", "View your personal tribute stats"),
+            ("`/stats`", "View your personal tribute stats and longest streak"),
         ],
         2,
     )
 
     page3 = _page(
-        "🎭 Fun Commands",
+        "🎭 Fun & Verification",
         [
-            ("`/trivia`", "Start a trivia game"),
-            ("`/meme`", "Get a random meme GIF"),
+            ("`/trivia`", "Start a button-based trivia game (30 second timer)"),
+            ("`/meme`", "Get a random meme GIF via Tenor"),
+            ("`/sendverification`", "Post the verification embed in the verification channel *(Admin)*"),
         ],
         3,
     )
 
     page4 = _page(
-        "🔧 Admin Commands",
+        "🔧 Admin — Channels",
         [
-            ("`/setverificationchannel #channel`", "Set the verification channel"),
             ("`/setwelcomechannel #channel`", "Set the welcome channel"),
-            ("`/setleaderboardchannel #channel`", "Set the leaderboard channel"),
-            ("`/setjailrole @role`", "Set the jail role"),
-            ("`/setdommerole @role`", "Set the Domme role"),
-            ("`/setsubrole @role`", "Set the Sub role"),
+            ("`/setleaderboardchannel #channel`", "Set the leaderboard/tribute confirmation channel"),
+            ("`/setannouncementchannel #channel`", "Set the announcement channel for coffee alerts"),
+            ("`/setverificationchannel #channel`", "Set the verification channel"),
         ],
         4,
     )
 
-    return [page1, page2, page3, page4]
+    page5 = _page(
+        "🔧 Admin — Roles",
+        [
+            ("`/setdommerole @role`", "Set the Domme role"),
+            ("`/setsubrole @role`", "Set the Sub role"),
+            ("`/setjailrole @role`", "Set the jail role"),
+            ("`/setadminrole @role`", "Set the admin role"),
+            ("`/setviprole @role`", "Set the VIP role for time-limited grants"),
+        ],
+        5,
+    )
+
+    return [page1, page2, page3, page4, page5]
+
