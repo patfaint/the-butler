@@ -4,6 +4,7 @@ import discord
 
 PINK = 0xFF69B4
 FOOTER_TEXT = "The Butler — At your service. 🎩"
+TOTAL_HELP_PAGES = 4  # Single source of truth for the help paginator page count.
 
 
 def base_embed(
@@ -58,13 +59,12 @@ def welcome_embed(member: discord.Member) -> discord.Embed:
     return embed
 
 
-def help_page_embed(page: int, total_pages: int) -> discord.Embed:
-    """Return the correct help page embed."""
-    pages = _build_help_pages(total_pages)
-    return pages[page]
+def help_page_embed(page: int) -> discord.Embed:
+    """Return the help page embed for *page* (0-indexed)."""
+    return _build_help_pages()[page]
 
 
-def _build_help_pages(total_pages: int) -> list[discord.Embed]:
+def _build_help_pages() -> list[discord.Embed]:
     """Build all help page embeds."""
 
     def _page(title: str, fields: list[tuple[str, str]], page_num: int) -> discord.Embed:
@@ -72,7 +72,7 @@ def _build_help_pages(total_pages: int) -> list[discord.Embed]:
         for name, value in fields:
             embed.add_field(name=name, value=value, inline=False)
         embed.set_footer(
-            text=f"{FOOTER_TEXT} | Page {page_num} of {total_pages}"
+            text=f"{FOOTER_TEXT} | Page {page_num} of {TOTAL_HELP_PAGES}"
         )
         return embed
 

@@ -155,7 +155,7 @@ def is_verified() -> Callable[..., Any]:
 
 # ── In-memory rate limiter ────────────────────────────────────────────────────
 
-# user_id → list of timestamps of recent invocations
+# command_name:user_id → list of timestamps of recent invocations
 _rate_limit_buckets: dict[str, list[float]] = defaultdict(list)
 
 
@@ -166,12 +166,16 @@ def cooldown(seconds: float, max_uses: int = 1) -> Callable[..., Any]:
         bucket_key = f"{interaction.command.name if interaction.command else 'unknown'}:{interaction.user.id}"
         now = time.monotonic()
         window_start = now - seconds
-        timestamps = _rate_limit_buckets[bucket_key]
-        # Prune old timestamps
-        _rate_limit_buckets[bucket_key] = [t for t in timestamps if t > window_start]
-        if len(_rate_limit_buckets[bucket_key]) >= max_uses:
+        timestamps = _rate_limit_buckets.get(bucket_key, [])
+        # Prune old timestamps and drop empty buckets so stale keys do not accumulate.
+        pruned = [t for t in timestamps if t > window_start]
+        if pruned:
+            _rate_limit_buckets[bucket_key] = pruned
+        else:
+            _rate_limit_buckets.pop(bucket_key, None)
+        if len(pruned) >= max_uses:
             raise _ephemeral_error(_MSG_COOLDOWN)
-        _rate_limit_buckets[bucket_key].append(now)
+        _rate_limit_buckets.setdefault(bucket_key, []).append(now)
         return True
 
     return app_commands.check(predicate)

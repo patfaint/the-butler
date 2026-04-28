@@ -6,9 +6,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from utils.embeds import help_page_embed
-
-TOTAL_PAGES = 4
+from utils.embeds import TOTAL_HELP_PAGES, help_page_embed
 
 
 class HelpPaginator(discord.ui.View):
@@ -24,10 +22,10 @@ class HelpPaginator(discord.ui.View):
 
     def _update_buttons(self) -> None:
         self.previous_button.disabled = self.page == 0
-        self.next_button.disabled = self.page == TOTAL_PAGES - 1
+        self.next_button.disabled = self.page == TOTAL_HELP_PAGES - 1
 
     def _current_embed(self) -> discord.Embed:
-        return help_page_embed(self.page, TOTAL_PAGES)
+        return help_page_embed(self.page)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         """Only the original invoker may press the pagination buttons."""
@@ -84,7 +82,7 @@ class HelpCog(commands.Cog, name="Help"):
         """Send the paginated help menu."""
         view = HelpPaginator(interaction)
         await interaction.response.send_message(
-            embed=help_page_embed(0, TOTAL_PAGES),
+            embed=help_page_embed(0),
             view=view,
             ephemeral=False,
         )

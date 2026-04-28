@@ -35,8 +35,13 @@ class VerificationCog(commands.Cog, name="Verification"):
         interaction: discord.Interaction,
         channel: discord.TextChannel,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.verification_channel_id = channel.id
             await session.commit()
         await interaction.response.send_message(

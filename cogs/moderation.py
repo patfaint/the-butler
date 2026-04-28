@@ -36,8 +36,13 @@ class ModerationCog(commands.Cog, name="Moderation"):
         interaction: discord.Interaction,
         channel: discord.TextChannel,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.welcome_channel_id = channel.id
             await session.commit()
         await interaction.response.send_message(
@@ -55,8 +60,13 @@ class ModerationCog(commands.Cog, name="Moderation"):
         interaction: discord.Interaction,
         channel: discord.TextChannel,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.leaderboard_channel_id = channel.id
             await session.commit()
         await interaction.response.send_message(
@@ -76,8 +86,13 @@ class ModerationCog(commands.Cog, name="Moderation"):
         interaction: discord.Interaction,
         role: discord.Role,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.domme_role_id = role.id
             await session.commit()
         await interaction.response.send_message(
@@ -95,8 +110,13 @@ class ModerationCog(commands.Cog, name="Moderation"):
         interaction: discord.Interaction,
         role: discord.Role,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.sub_role_id = role.id
             await session.commit()
         await interaction.response.send_message(
@@ -114,8 +134,13 @@ class ModerationCog(commands.Cog, name="Moderation"):
         interaction: discord.Interaction,
         role: discord.Role,
     ) -> None:
+        if interaction.guild is None:
+            await interaction.response.send_message(
+                "This command can only be used in a server.", ephemeral=True
+            )
+            return
         async with AsyncSessionLocal() as session:
-            config = await get_or_create_guild_config(session, interaction.guild_id)
+            config = await get_or_create_guild_config(session, interaction.guild.id)
             config.jail_role_id = role.id
             await session.commit()
         await interaction.response.send_message(

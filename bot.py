@@ -62,8 +62,8 @@ class Butler(commands.Bot):
             try:
                 await self.load_extension(cog)
                 log.info("Loaded cog: %s", cog)
-            except Exception as exc:
-                log.error("Failed to load cog %s: %s", cog, exc)
+            except Exception:
+                log.exception("Failed to load cog %s", cog)
 
         # Sync slash commands to the home guild for instant availability.
         # For global rollout, remove the guild argument.
