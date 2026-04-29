@@ -125,7 +125,7 @@ else
     read -rp "  DISCORD_TOKEN: " DISCORD_TOKEN
   done
 
-  read -rp "  GIPHY_API_KEY (leave blank to skip): " GIPHY_API_KEY
+  read -rp "  TENOR_API_KEY (leave blank to skip): " TENOR_API_KEY
 
   read -rp "  GUILD_ID: " GUILD_ID
   while [[ -z "${GUILD_ID}" ]]; do
@@ -139,7 +139,7 @@ else
   info "Writing .env file..."
   cat > "${ENV_FILE}" <<EOF
 DISCORD_TOKEN=${DISCORD_TOKEN}
-GIPHY_API_KEY=${GIPHY_API_KEY}
+TENOR_API_KEY=${TENOR_API_KEY}
 GUILD_ID=${GUILD_ID}
 DATABASE_URL=${DATABASE_URL}
 EOF
