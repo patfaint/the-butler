@@ -8,15 +8,16 @@ DATA_DIR="${APP_ROOT}/data"
 LOG_DIR="${APP_ROOT}/logs"
 SERVICE_NAME="the-butler"
 RUNTIME_USER="butlerbot"
-DEPLOY_OWNER="${SUDO_USER:-root}"
-DEPLOY_GROUP="$(id -gn "${DEPLOY_OWNER}" 2>/dev/null || printf '%s' "${DEPLOY_OWNER}")"
 PYTHON_BIN=""
 
-if [[ "${EUID}" -ne 0 ]]; then
-  echo "This installer must run with sudo."
+if [[ "${EUID}" -ne 0 || -z "${SUDO_USER:-}" || "${SUDO_USER}" == "root" ]]; then
+  echo "This installer must be run with sudo by the non-root deploy user."
   echo "Usage: sudo bash install.sh"
   exit 1
 fi
+
+DEPLOY_OWNER="${SUDO_USER}"
+DEPLOY_GROUP="$(id -gn "${DEPLOY_OWNER}")"
 
 if ! command -v apt-get >/dev/null 2>&1; then
   echo "This installer currently supports Debian/Ubuntu systems with apt-get."
@@ -44,9 +45,21 @@ prompt_secret() {
 
 echo "Installing system packages..."
 apt-get update
-apt-get install -y git python3 python3-venv python3-pip
+apt-get install -y git python3 python3-venv python3-pip software-properties-common
 
-PYTHON_BIN="$(command -v python3.11 || command -v python3)"
+if ! command -v python3.11 >/dev/null 2>&1; then
+  if [[ -r /etc/os-release ]]; then
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    if [[ "${ID:-}" == "ubuntu" ]]; then
+      add-apt-repository -y ppa:deadsnakes/ppa
+      apt-get update
+    fi
+  fi
+fi
+
+apt-get install -y python3.11 python3.11-venv
+PYTHON_BIN="$(command -v python3.11)"
 
 if ! "${PYTHON_BIN}" - <<'PY'
 import sys

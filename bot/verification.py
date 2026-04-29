@@ -118,7 +118,7 @@ class VerificationService:
             "I've sent you a DM with verification instructions.",
             ephemeral=True,
         )
-        self.bot.loop.create_task(self._run_dm_flow(interaction.user, interaction.guild, key))
+        asyncio.create_task(self._run_dm_flow(interaction.user, interaction.guild, key))
 
     async def setup_verification_panel(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):

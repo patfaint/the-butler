@@ -87,7 +87,7 @@ Thank you
 INITIAL_VERIFICATION_DM_TITLE = "🔞🔒 Age Verification 🔒🔞"
 INITIAL_VERIFICATION_DM_DESCRIPTION = """Hey there and welcome to The Drain Gang!
 
-To submit your verification to the server staff, simply send a photo of your profile on one our approved services to send a link to your page. To remind you of our approved services, here they are:
+To submit your verification to the server staff, simply send a photo of your profile on one of our approved services or send a link to your page. To remind you of our approved services, here they are:
 
 - Yoti
 - OnlyFans
@@ -96,7 +96,7 @@ To submit your verification to the server staff, simply send a photo of your pro
 - FetishFinder
 - YouPay
 
-⚠️ This verification submission will expire in 5 minutes if nothing received by the bot"""
+⚠️ This verification submission will expire in 5 minutes if nothing is received by the bot"""
 
 ROLE_PROMPT_TITLE = "🔞🔒 Age Verification 🔒🔞"
 ROLE_PROMPT_DESCRIPTION = """Thank you for submitting that!
@@ -160,6 +160,6 @@ GENERAL_DOMME_MESSAGES = (
 
 GENERAL_SUBMISSIVE_MESSAGES = (
     "Look who came crawling in 👀, it's a new sub! Welcome {user_mention}",
-    "Attention all Dommes, {user_mention} is here and is ready server.",
+    "Attention all Dommes, {user_mention} is here and is ready to serve.",
     "{user_mention} just joined and is ready to serve.",
 )

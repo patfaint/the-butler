@@ -144,9 +144,11 @@ Run the installer on a fresh Linux server:
 sudo bash install.sh
 ```
 
+Run it from the deploy user's shell with `sudo`, not from a direct root login. The installer makes that non-root user the owner of the checked-out app so GitHub Actions can update it later.
+
 The installer:
 
-- Installs `git`, `python3`, `python3-venv`, and `pip`
+- Installs `git`, `python3`, `python3-venv`, `pip`, and Python 3.11
 - Creates the `butlerbot` runtime user
 - Creates `/opt/the-butler/app`, `/opt/the-butler/data`, and `/opt/the-butler/logs`
 - Clones this repository
@@ -185,8 +187,15 @@ Add these GitHub repository secrets:
 - `DEPLOY_USER`: SSH deploy user, not `butlerbot`
 - `DEPLOY_SSH_KEY`: private SSH key for the deploy user
 - `DEPLOY_PORT`: SSH port, usually `22`
+- `DEPLOY_KNOWN_HOSTS`: pinned SSH known_hosts entry for the server
 
 The workflow does not store or send the Discord token. The token stays in `/opt/the-butler/app/.env` on the server.
+
+Create `DEPLOY_KNOWN_HOSTS` from a trusted machine and verify the fingerprint before saving it:
+
+```bash
+ssh-keyscan -p 22 your-server.example.com
+```
 
 The deploy user needs permission to run:
 
