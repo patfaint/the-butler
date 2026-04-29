@@ -1,190 +1,182 @@
 #!/usr/bin/env bash
-# install.sh — One-time EC2 setup script for The Butler Discord bot
-# Run as root or with sudo: sudo bash install.sh
-
 set -euo pipefail
 
-# ── Colours ───────────────────────────────────────────────────────────────────
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-RED='\033[0;31m'
-NC='\033[0m'
-
-info()  { echo -e "${GREEN}[✔]${NC} $*"; }
-warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
-error() { echo -e "${RED}[✘]${NC} $*" >&2; exit 1; }
-
-# ── Root check ────────────────────────────────────────────────────────────────
-if [[ $EUID -ne 0 ]]; then
-  error "This script must be run as root. Try: sudo bash install.sh"
-fi
-
 REPO_URL="https://github.com/patfaint/the-butler.git"
-BOT_USER="butler"
-BOT_HOME="/home/butler"
-BOT_DIR="${BOT_HOME}/the-butler"
+APP_ROOT="/opt/the-butler"
+APP_DIR="${APP_ROOT}/app"
+DATA_DIR="${APP_ROOT}/data"
+LOG_DIR="${APP_ROOT}/logs"
 SERVICE_NAME="the-butler"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
+RUNTIME_USER="butlerbot"
+PYTHON_BIN=""
 
-echo ""
-echo "🎩 The Butler — EC2 Installation Script"
-echo "========================================"
-echo ""
+if [[ "${EUID}" -ne 0 || -z "${SUDO_USER:-}" || "${SUDO_USER}" == "root" ]]; then
+  echo "This installer must be run with sudo by the non-root deploy user."
+  echo "Usage: sudo bash install.sh"
+  exit 1
+fi
 
-# ── 1. Detect OS and install packages ────────────────────────────────────────
-info "Detecting operating system..."
+DEPLOY_OWNER="${SUDO_USER}"
+DEPLOY_GROUP="$(id -gn "${DEPLOY_OWNER}")"
 
-if command -v apt-get &>/dev/null; then
-  OS="ubuntu"
-  info "Detected Ubuntu/Debian. Adding deadsnakes PPA for Python 3.12..."
-  apt-get update -y -qq
-  apt-get install -y -qq software-properties-common
-  add-apt-repository ppa:deadsnakes/ppa -y
-  apt-get update -y -qq
-  apt-get install -y -qq python3.12 python3.12-venv python3.12-distutils python3-pip git screen curl
-elif command -v yum &>/dev/null; then
-  OS="amazon"
-  info "Detected Amazon Linux / RHEL. Updating packages..."
-  yum update -y -q
-  if yum list available python3.12 &>/dev/null 2>&1; then
-    yum install -y -q python3.12 git screen
-  else
-    warn "python3.12 not in default repos — installing from source..."
-    yum install -y -q gcc openssl-devel bzip2-devel libffi-devel zlib-devel git screen curl
-    cd /tmp
-    curl -fsSL https://www.python.org/ftp/python/3.12.4/Python-3.12.4.tgz -o Python-3.12.4.tgz
-    tar -xzf Python-3.12.4.tgz
-    cd Python-3.12.4
-    ./configure --enable-optimizations --quiet
-    make altinstall -j"$(nproc)" > /dev/null
-    cd /
-    rm -rf /tmp/Python-3.12.4 /tmp/Python-3.12.4.tgz
+if ! command -v apt-get >/dev/null 2>&1; then
+  echo "This installer currently supports Debian/Ubuntu systems with apt-get."
+  exit 1
+fi
+
+prompt_int() {
+  local name="$1"
+  local value=""
+  while true; do
+    read -r -p "${name}: " value
+    if [[ "${value}" =~ ^[0-9]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must be a numeric Discord ID."
+  done
+}
+
+prompt_optional_int() {
+  local name="$1"
+  local value=""
+  while true; do
+    read -r -p "${name}: " value
+    if [[ -z "${value}" || "${value}" =~ ^[0-9]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must be blank or a numeric Discord ID."
+  done
+}
+
+prompt_env_secret() {
+  local name="$1"
+  local value=""
+  while true; do
+    read -r -s -p "${name}: " value
+    echo
+    if [[ -n "${value}" && "${value}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must not contain spaces, quotes, #, or shell metacharacters."
+  done
+}
+
+write_env_line() {
+  local name="$1"
+  local value="$2"
+  printf '%s=%s\n' "${name}" "${value}"
+}
+
+echo "Installing system packages..."
+apt-get update
+apt-get install -y git python3 python3-venv python3-pip software-properties-common
+
+if ! command -v python3.11 >/dev/null 2>&1; then
+  if [[ -r /etc/os-release ]]; then
+    # shellcheck source=/dev/null
+    . /etc/os-release
+    if [[ "${ID:-}" == "ubuntu" ]]; then
+      add-apt-repository -y ppa:deadsnakes/ppa
+      apt-get update
+    fi
   fi
-  python3.12 -m ensurepip --upgrade 2>/dev/null || true
-else
-  error "Unsupported OS. This script supports Ubuntu/Debian and Amazon Linux."
 fi
 
-info "System packages installed."
+apt-get install -y python3.11 python3.11-venv
+PYTHON_BIN="$(command -v python3.11)"
 
-# ── 2. Create the butler system user ─────────────────────────────────────────
-if id "${BOT_USER}" &>/dev/null; then
-  warn "User '${BOT_USER}' already exists — skipping creation."
-else
-  info "Creating system user '${BOT_USER}'..."
-  useradd --system --create-home --home-dir "${BOT_HOME}" --shell /bin/bash "${BOT_USER}"
-  info "User '${BOT_USER}' created."
+if ! "${PYTHON_BIN}" - <<'PY'
+import sys
+raise SystemExit(0 if sys.version_info >= (3, 11) else 1)
+PY
+then
+  echo "Python 3.11 or newer is required. Install Python 3.11+ and run this installer again."
+  exit 1
 fi
 
-# ── 3. Clone or update the repository ────────────────────────────────────────
-if [[ -d "${BOT_DIR}/.git" ]]; then
-  warn "Repository already exists at ${BOT_DIR} — pulling latest changes..."
-  sudo -u "${BOT_USER}" git -C "${BOT_DIR}" pull --ff-only
-  info "Repository updated."
-else
-  info "Cloning repository to ${BOT_DIR}..."
-  sudo -u "${BOT_USER}" git clone "${REPO_URL}" "${BOT_DIR}"
-  info "Repository cloned."
+echo "Creating runtime user..."
+if ! getent group "${RUNTIME_USER}" >/dev/null 2>&1; then
+  groupadd --system "${RUNTIME_USER}"
 fi
 
-# ── 4. Python 3.12 virtual environment ───────────────────────────────────────
-PYTHON_BIN="$(command -v python3.12)"
-PYTHON_VERSION="${PYTHON_BIN} --version 2>&1"
-info "Using Python: ${PYTHON_BIN} (${PYTHON_VERSION})"
-
-VENV_DIR="${BOT_DIR}/venv"
-
-if [[ -d "${VENV_DIR}" ]]; then
-  warn "Virtual environment already exists — skipping creation."
-else
-  info "Creating Python 3.12 virtual environment..."
-  sudo -u "${BOT_USER}" "${PYTHON_BIN}" -m venv "${VENV_DIR}"
-  info "Virtual environment created."
+if ! id "${RUNTIME_USER}" >/dev/null 2>&1; then
+  useradd --system --gid "${RUNTIME_USER}" --home-dir "${APP_ROOT}" --shell /usr/sbin/nologin "${RUNTIME_USER}"
 fi
 
-info "Installing Python dependencies from requirements.txt..."
-sudo -u "${BOT_USER}" "${VENV_DIR}/bin/pip" install --quiet --upgrade pip
-sudo -u "${BOT_USER}" "${VENV_DIR}/bin/pip" install --quiet -r "${BOT_DIR}/requirements.txt"
-info "Dependencies installed."
+echo "Creating directories..."
+mkdir -p "${APP_DIR}" "${DATA_DIR}" "${LOG_DIR}"
 
-# ── 5. Environment variables (.env) ──────────────────────────────────────────
-ENV_FILE="${BOT_DIR}/.env"
-
-if [[ -f "${ENV_FILE}" ]]; then
-  warn ".env file already exists at ${ENV_FILE} — skipping prompt."
+echo "Cloning repository..."
+if [[ -d "${APP_DIR}/.git" ]]; then
+  git -C "${APP_DIR}" fetch origin main
+  git -C "${APP_DIR}" reset --hard origin/main
 else
-  echo ""
-  echo "🔑 Environment Configuration"
-  echo "----------------------------"
-  echo "Please provide the following values. Press Enter to accept the default where shown."
-  echo ""
-
-  read -rp "  DISCORD_TOKEN: " DISCORD_TOKEN
-  while [[ -z "${DISCORD_TOKEN}" ]]; do
-    warn "DISCORD_TOKEN cannot be empty."
-    read -rp "  DISCORD_TOKEN: " DISCORD_TOKEN
-  done
-
-  read -rp "  TENOR_API_KEY (leave blank to skip): " TENOR_API_KEY
-
-  read -rp "  GUILD_ID: " GUILD_ID
-  while [[ -z "${GUILD_ID}" ]]; do
-    warn "GUILD_ID cannot be empty."
-    read -rp "  GUILD_ID: " GUILD_ID
-  done
-
-  read -rp "  DATABASE_URL [sqlite+aiosqlite:///./butler.db]: " DATABASE_URL
-  DATABASE_URL="${DATABASE_URL:-sqlite+aiosqlite:///./butler.db}"
-
-  info "Writing .env file..."
-  cat > "${ENV_FILE}" <<EOF
-DISCORD_TOKEN=${DISCORD_TOKEN}
-TENOR_API_KEY=${TENOR_API_KEY}
-GUILD_ID=${GUILD_ID}
-DATABASE_URL=${DATABASE_URL}
-EOF
-
-  chown "${BOT_USER}:${BOT_USER}" "${ENV_FILE}"
-  chmod 600 "${ENV_FILE}"
-  info ".env file created."
+  rm -rf "${APP_DIR}"
+  git clone "${REPO_URL}" "${APP_DIR}"
 fi
 
-# ── 6. Systemd service ────────────────────────────────────────────────────────
-info "Creating systemd service file at ${SERVICE_FILE}..."
+mkdir -p "${APP_DIR}/data"
 
-cat > "${SERVICE_FILE}" <<EOF
-[Unit]
-Description=The Butler Discord Bot
-After=network.target
+echo "Creating Python virtual environment..."
+"${PYTHON_BIN}" -m venv "${APP_DIR}/.venv"
+"${APP_DIR}/.venv/bin/python" -m pip install --upgrade pip
+"${APP_DIR}/.venv/bin/pip" install -r "${APP_DIR}/requirements.txt"
 
-[Service]
-Type=simple
-User=${BOT_USER}
-WorkingDirectory=${BOT_DIR}
-EnvironmentFile=${ENV_FILE}
-ExecStart=${VENV_DIR}/bin/python bot.py
-Restart=always
-RestartSec=10
+echo "Enter Discord and server configuration."
+DISCORD_TOKEN="$(prompt_env_secret "DISCORD_TOKEN")"
+GUILD_ID="$(prompt_optional_int "GUILD_ID (optional)")"
+WELCOME_CHANNEL_ID="$(prompt_int "WELCOME_CHANNEL_ID")"
+VERIFICATION_CHANNEL_ID="$(prompt_int "VERIFICATION_CHANNEL_ID")"
+VERIFY_LOG_CHANNEL_ID="$(prompt_int "VERIFY_LOG_CHANNEL_ID")"
+GENERAL_CHANNEL_ID="$(prompt_int "GENERAL_CHANNEL_ID")"
+ROLES_CHANNEL_ID="$(prompt_int "ROLES_CHANNEL_ID")"
+INTRODUCTIONS_CHANNEL_ID="$(prompt_int "INTRODUCTIONS_CHANNEL_ID")"
+UNVERIFIED_ROLE_ID="$(prompt_int "UNVERIFIED_ROLE_ID")"
+VERIFIED_ROLE_ID="$(prompt_int "VERIFIED_ROLE_ID")"
+DOMME_ROLE_ID="$(prompt_int "DOMME_ROLE_ID")"
+SUBMISSIVE_ROLE_ID="$(prompt_int "SUBMISSIVE_ROLE_ID")"
+MODERATION_ROLE_ID="$(prompt_int "MODERATION_ROLE_ID")"
 
-[Install]
-WantedBy=multi-user.target
-EOF
+{
+  write_env_line "DISCORD_TOKEN" "${DISCORD_TOKEN}"
+  write_env_line "GUILD_ID" "${GUILD_ID}"
+  write_env_line "WELCOME_CHANNEL_ID" "${WELCOME_CHANNEL_ID}"
+  write_env_line "VERIFICATION_CHANNEL_ID" "${VERIFICATION_CHANNEL_ID}"
+  write_env_line "VERIFY_LOG_CHANNEL_ID" "${VERIFY_LOG_CHANNEL_ID}"
+  write_env_line "GENERAL_CHANNEL_ID" "${GENERAL_CHANNEL_ID}"
+  write_env_line "ROLES_CHANNEL_ID" "${ROLES_CHANNEL_ID}"
+  write_env_line "INTRODUCTIONS_CHANNEL_ID" "${INTRODUCTIONS_CHANNEL_ID}"
+  write_env_line "UNVERIFIED_ROLE_ID" "${UNVERIFIED_ROLE_ID}"
+  write_env_line "VERIFIED_ROLE_ID" "${VERIFIED_ROLE_ID}"
+  write_env_line "DOMME_ROLE_ID" "${DOMME_ROLE_ID}"
+  write_env_line "SUBMISSIVE_ROLE_ID" "${SUBMISSIVE_ROLE_ID}"
+  write_env_line "MODERATION_ROLE_ID" "${MODERATION_ROLE_ID}"
+  write_env_line "DATABASE_PATH" "${DATA_DIR}/the_butler.sqlite3"
+} > "${APP_DIR}/.env"
 
+chmod 600 "${APP_DIR}/.env"
+chown "${RUNTIME_USER}:${RUNTIME_USER}" "${APP_DIR}/.env"
+chown -R "${RUNTIME_USER}:${RUNTIME_USER}" "${DATA_DIR}" "${LOG_DIR}"
+chown -R "${DEPLOY_OWNER}:${DEPLOY_GROUP}" "${APP_DIR}"
+chown -R "${RUNTIME_USER}:${RUNTIME_USER}" "${APP_DIR}/data"
+chown "${RUNTIME_USER}:${RUNTIME_USER}" "${APP_DIR}/.env"
+
+echo "Installing systemd service..."
+install -m 0644 "${APP_DIR}/the-butler.service" "/etc/systemd/system/${SERVICE_NAME}.service"
 systemctl daemon-reload
-systemctl enable "${SERVICE_NAME}"
-systemctl restart "${SERVICE_NAME}"
-info "Service '${SERVICE_NAME}' enabled and started."
+systemctl enable --now "${SERVICE_NAME}"
 
-# ── 7. Fix ownership ──────────────────────────────────────────────────────────
-chown -R "${BOT_USER}:${BOT_USER}" "${BOT_HOME}"
-
-# ── 8. Final summary ──────────────────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}🎩 The Butler has been installed and is now at your service.${NC}"
-echo ""
-echo "Useful commands:"
-echo "  Check status:   sudo systemctl status ${SERVICE_NAME}"
-echo "  View logs:      sudo journalctl -u ${SERVICE_NAME} -f"
-echo "  Restart bot:    sudo systemctl restart ${SERVICE_NAME}"
-echo "  Update bot:     sudo bash ${BOT_DIR}/update.sh"
-echo ""
+echo
+echo "The Butler is installed."
+echo
+echo "Status command:"
+echo "  sudo systemctl status ${SERVICE_NAME}"
+echo
+echo "Logs command:"
+echo "  sudo journalctl -u ${SERVICE_NAME} -f"
+echo
+echo "Restart command:"
+echo "  sudo systemctl restart ${SERVICE_NAME}"
