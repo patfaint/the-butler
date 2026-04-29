@@ -252,12 +252,15 @@ class DommeSetupView(discord.ui.View):
         return False
 
     async def on_timeout(self) -> None:
+        if self.session.current_view is not self:
+            return
         _disable_all(self)
         if self.session.message:
             try:
                 await self.session.message.edit(view=self)
             except discord.HTTPException:
                 pass
+        self.session.current_view = None
         self.service.finish_session(self.session.user_id)
 
 
