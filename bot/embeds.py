@@ -34,6 +34,59 @@ def _feature_value(enabled: bool) -> str:
     return "Yes" if enabled else "No"
 
 
+def _add_chunked_field(
+    embed: discord.Embed,
+    *,
+    name: str,
+    lines: list[str],
+) -> None:
+    chunks: list[str] = []
+    current_lines: list[str] = []
+    current_length = 0
+
+    for line in lines:
+        line_length = len(line)
+        projected_length = line_length if not current_lines else current_length + 1 + line_length
+        if current_lines and projected_length > 1024:
+            chunks.append("\n".join(current_lines))
+            current_lines = [line]
+            current_length = line_length
+            continue
+
+        current_lines.append(line)
+        current_length = projected_length
+
+    if current_lines:
+        chunks.append("\n".join(current_lines))
+
+    for index, chunk in enumerate(chunks):
+        heading = name if index == 0 else f"{name} (cont.)"
+        embed.add_field(name=heading, value=chunk, inline=False)
+
+
+def _payment_lines(
+    *,
+    throne: str | None,
+    paypal: str | None,
+    youpay: str | None,
+    cashapp: str | None,
+    venmo: str | None,
+    beemit: str | None,
+    loyalfans: str | None,
+    onlyfans: str | None,
+) -> list[str]:
+    return [
+        f"**Throne:** {_profile_value(throne)}",
+        f"**PayPal:** {_profile_value(paypal)}",
+        f"**YouPay:** {_profile_value(youpay)}",
+        f"**Cashapp:** {_profile_value(cashapp)}",
+        f"**Venmo:** {_profile_value(venmo)}",
+        f"**Beemit:** {_profile_value(beemit)}",
+        f"**Loyalfans:** {_profile_value(loyalfans)}",
+        f"**Onlyfans:** {_profile_value(onlyfans)}",
+    ]
+
+
 def welcome_embed(member: discord.Member) -> discord.Embed:
     embed = _styled_embed(
         title=messages.WELCOME_TITLE,
@@ -439,19 +492,19 @@ def domme_setup_review_embed(
         ),
         inline=False,
     )
-    embed.add_field(
+    _add_chunked_field(
+        embed,
         name="Payment Methods",
-        value=(
-            f"**Throne:** {_profile_value(throne)}\n"
-            f"**PayPal:** {_profile_value(paypal)}\n"
-            f"**YouPay:** {_profile_value(youpay)}\n"
-            f"**Cashapp:** {_profile_value(cashapp)}\n"
-            f"**Venmo:** {_profile_value(venmo)}\n"
-            f"**Beemit:** {_profile_value(beemit)}\n"
-            f"**Loyalfans:** {_profile_value(loyalfans)}\n"
-            f"**Onlyfans:** {_profile_value(onlyfans)}"
+        lines=_payment_lines(
+            throne=throne,
+            paypal=paypal,
+            youpay=youpay,
+            cashapp=cashapp,
+            venmo=venmo,
+            beemit=beemit,
+            loyalfans=loyalfans,
+            onlyfans=onlyfans,
         ),
-        inline=False,
     )
     embed.add_field(
         name="Features",
@@ -487,7 +540,7 @@ def domme_setup_later_embed() -> discord.Embed:
 
 def domme_setup_cancelled_embed() -> discord.Embed:
     embed = _styled_embed(
-        title=messages.DOMME_SETUP_LATER_TITLE,
+        title=messages.DOMME_SETUP_CANCELLED_TITLE,
         description=messages.DOMME_SETUP_CANCELLED_DESCRIPTION,
         color=SOFT_DARK,
     )
@@ -521,19 +574,19 @@ def domme_profile_embed(
         ),
         inline=False,
     )
-    embed.add_field(
+    _add_chunked_field(
+        embed,
         name="Payment Methods",
-        value=(
-            f"**Throne:** {_profile_value(profile.throne)}\n"
-            f"**PayPal:** {_profile_value(profile.paypal)}\n"
-            f"**YouPay:** {_profile_value(profile.youpay)}\n"
-            f"**Cashapp:** {_profile_value(profile.cashapp)}\n"
-            f"**Venmo:** {_profile_value(profile.venmo)}\n"
-            f"**Beemit:** {_profile_value(profile.beemit)}\n"
-            f"**Loyalfans:** {_profile_value(profile.loyalfans)}\n"
-            f"**Onlyfans:** {_profile_value(profile.onlyfans)}"
+        lines=_payment_lines(
+            throne=profile.throne,
+            paypal=profile.paypal,
+            youpay=profile.youpay,
+            cashapp=profile.cashapp,
+            venmo=profile.venmo,
+            beemit=profile.beemit,
+            loyalfans=profile.loyalfans,
+            onlyfans=profile.onlyfans,
         ),
-        inline=False,
     )
     embed.add_field(
         name="Features",
