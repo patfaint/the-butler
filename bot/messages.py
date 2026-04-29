@@ -181,7 +181,7 @@ If you’re ready to proceed, click continue below. Or otherwise if you want to 
 NOTE: All questions are optional. If you do not want to answer something, click Skip."""
 
 DOMME_SETUP_NAME_TITLE = "Step 1: Your name and honorific"
-DOMME_SETUP_NAME_DESCRIPTION = """To make sure subs address you correctly, we need your name and honourifics."""
+DOMME_SETUP_NAME_DESCRIPTION = """To make sure subs address you correctly, we need your name and honorifics."""
 
 DOMME_SETUP_DETAILS_TITLE = "Step 2: The nitty gritty"
 DOMME_SETUP_DETAILS_DESCRIPTION = """Fill out any of the below details you want included on your profile."""
