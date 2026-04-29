@@ -2,35 +2,46 @@
 
 A professional Discord bot for **The Drain Server** — a polished, sassy butler who keeps order, tracks tributes, manages Domme profiles, and adds a touch of class to an 18+ findom/femdom community.
 
-Built with `discord.py` (slash commands), `SQLAlchemy` async, and designed to be hosted on **AWS**.
-
----
-
-## ✨ Features (Phase 1)
-
-| Feature | Status |
-|---|---|
-| `/help` — paginated pink help menu | ✅ Live |
-| Permissions system (`is_domme`, `is_sub`, `is_admin`, `is_domme_or_admin`, `is_verified`, `cooldown`) | ✅ Live |
-| Welcome embed on member join | ✅ Live |
-| Admin `/set*` commands (roles & channels) | ✅ Live |
-| Full database schema (GuildConfig, DommeProfile, SubProfile, Tribute, JailRecord, VIPRole, TributeStreak) | ✅ Live |
-| Stub commands for Phase 2 (coffee, throne, tribute, jail, trivia, reactions, VIP, verification) | ✅ Ready |
+Built with `discord.py` (slash commands), `SQLAlchemy` async, **Python 3.12**, and designed to be hosted on **AWS EC2**.
 
 ---
 
 ## 🛠 Tech Stack
 
-- **Python 3.11+**
+- **Python 3.12**
 - **discord.py ≥ 2.3** — slash commands via `app_commands`
 - **SQLAlchemy ≥ 2.0** (async) + **aiosqlite**
-- **APScheduler** — for timed events (AWS EventBridge compatible)
+- **APScheduler** — for timed events
 - **Tenor API** — for GIF reactions
-- **AWS** — environment variables for all secrets, no hardcoded values
+- **AWS EC2** — always-on, systemd-managed service
 
 ---
 
-## 🚀 Getting Started
+## 📁 Project Structure
+
+```
+the-butler/
+├── bot.py                  # Entry point — Butler class + main()
+├── config.py               # Env var loader
+├── requirements.txt
+├── .env.example
+├── install.sh              # One-time EC2 setup
+├── update.sh               # Pull + restart (run by CI deploy)
+├── README.md
+├── cogs/                   # Slash-command cogs (add here)
+│   └── __init__.py
+├── database/
+│   ├── db.py               # Async engine + session factory
+│   ├── helpers.py          # Shared DB helpers (get_or_create_guild_config)
+│   └── models.py           # SQLAlchemy ORM models
+└── utils/
+    ├── embeds.py           # Reusable pink embed builders
+    └── algorithms.py       # Coffee price algorithm
+```
+
+---
+
+## 🚀 Local Development
 
 ### 1. Create the Discord Application
 
@@ -67,14 +78,14 @@ Fill in `.env`:
 ```env
 DISCORD_TOKEN=your_bot_token_here
 GUILD_ID=your_server_id_here
-TENOR_API_KEY=your_tenor_api_key_here   # optional for Phase 1
+TENOR_API_KEY=your_tenor_api_key_here   # optional
 DATABASE_URL=sqlite+aiosqlite:///./butler.db
 ```
 
 ### 5. Install Dependencies
 
 ```bash
-python -m venv venv
+python3.12 -m venv venv
 source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
@@ -87,17 +98,14 @@ python bot.py
 
 On first run, the bot will:
 - Create the SQLite database (`butler.db`) with all tables
-- Load all cogs
 - Sync slash commands to your guild (available within seconds)
 - Set its status to *"At your service. 🎩"*
 
 ---
 
-## ☁️ Deploying on AWS
+## ☁️ Deploying on AWS EC2
 
-### Option A — EC2 (recommended for always-on)
-
-#### First-time installation
+### First-time installation
 
 1. Launch an **EC2 t3.micro** instance (Amazon Linux 2023 or Ubuntu 22.04).
 2. Open port **22** in the Security Group for your IP (or the GitHub Actions IP range if using the deploy workflow).
@@ -115,7 +123,7 @@ The script will:
 - Prompt for your `.env` values (`DISCORD_TOKEN`, `GUILD_ID`, etc.)
 - Register and start a **systemd service** (`the-butler`) that restarts automatically on failure
 
-#### Manual updates
+### Manual updates
 
 To pull the latest code and restart the service at any time:
 
@@ -123,7 +131,7 @@ To pull the latest code and restart the service at any time:
 sudo bash /home/butler/the-butler/update.sh
 ```
 
-#### Automated deploys via GitHub Actions
+### Automated deploys via GitHub Actions
 
 Every push to `main` automatically deploys to your EC2 instance using the workflow at `.github/workflows/deploy.yml`.
 
@@ -141,9 +149,9 @@ The workflow SSHes into the instance and runs `update.sh`, which:
 3. Restarts the `the-butler` systemd service
 4. Verifies the service came back up
 
-> **Tip:** The SSH user (`EC2_USER`) must have `sudo` access to restart the systemd service without a password. On Amazon Linux / Ubuntu the default `ec2-user` / `ubuntu` accounts have this by default.
+> **Tip:** The SSH user (`EC2_USER`) must have passwordless `sudo` access. On Amazon Linux / Ubuntu the default `ec2-user` / `ubuntu` accounts have this by default.
 
-#### Useful commands
+### Useful commands
 
 ```bash
 sudo systemctl status the-butler     # service health
@@ -152,62 +160,11 @@ sudo systemctl restart the-butler    # manual restart
 sudo bash /home/butler/the-butler/update.sh  # pull + restart
 ```
 
-### Option B — AWS Lambda + EventBridge (for scheduled tasks only)
-
-Scheduled commands (coffee reminders, VIP expiry checks) can be extracted into Lambda functions triggered by EventBridge rules. The main bot process still needs to run on EC2 or ECS.
-
-### Environment Variables on AWS
-
-Store secrets in **AWS Secrets Manager** or **SSM Parameter Store** and inject them as environment variables in your EC2 user data, ECS task definition, or Lambda configuration. Never hardcode tokens in source code.
-
----
-
-## 📋 Bot Commands (Phase 1)
-
-### 👑 Domme Commands
-| Command | Description |
-|---|---|
-| `/setup` | Configure your Butler profile *(stub — Phase 2)* |
-| `/coffee` | Alert all subs you're seeking coffee *(stub — Phase 2)* |
-| `/throne` | Register or display your Throne wishlist link *(stub — Phase 2)* |
-| `/confirm @sub $amount` | Confirm a sub's tribute *(stub — Phase 2)* |
-| `/jail @user <duration>` | Send someone to jail *(stub — Phase 2)* |
-| `/release @user` | Release someone from jail early *(stub — Phase 2)* |
-
-### 🐾 Sub Commands
-| Command | Description |
-|---|---|
-| `/tribute @domme $amount` | Log a tribute to a domme *(stub — Phase 2)* |
-| `/wishlist @domme` | View a domme's Throne wishlist link *(stub — Phase 2)* |
-| `/leaderboard` | View the server tribute leaderboard *(stub — Phase 2)* |
-| `/stats` | View your personal tribute stats *(stub — Phase 2)* |
-
-### 🎭 Fun Commands
-| Command | Description |
-|---|---|
-| `/trivia` | Start a trivia game *(stub — Phase 2)* |
-| `/meme` | Get a random meme GIF *(stub — Phase 2)* |
-
-### 🔧 Admin Commands
-| Command | Description |
-|---|---|
-| `/setwelcomechannel #channel` | Set the welcome channel |
-| `/setleaderboardchannel #channel` | Set the leaderboard channel |
-| `/setdommerole @role` | Set the Domme role |
-| `/setsubrole @role` | Set the Sub role |
-| `/setjailrole @role` | Set the jail role |
-| `/setverificationchannel #channel` | Set the verification channel |
-
-### ℹ️ General
-| Command | Description |
-|---|---|
-| `/help` | Browse all commands with a paginated pink embed |
-
 ---
 
 ## 🗄 Database Schema
 
-All tables are created automatically on startup.
+All tables are created automatically on startup via `database/models.py`.
 
 | Table | Purpose |
 |---|---|
@@ -229,36 +186,3 @@ All bot messages are formal, polished, and slightly sassy:
 > *"Your tribute has been recorded with the utmost discretion."*
 > *"I'm afraid that command is reserved for the Dommes, darling. 🎩"*
 > *"The Butler is always watching. 🎩"*
-
----
-
-## 📁 Project Structure
-
-```
-the-butler/
-├── bot.py                  # Entry point
-├── config.py               # Env var loader
-├── requirements.txt
-├── .env.example
-├── README.md
-├── cogs/
-│   ├── help.py             # /help paginated menu
-│   ├── permissions.py      # Permission checks & rate limiting
-│   ├── setup.py            # Domme onboarding wizard (Phase 2)
-│   ├── throne.py           # Throne link registry (Phase 2)
-│   ├── coffee.py           # Coffee alert system (Phase 2)
-│   ├── tribute.py          # Tribute logging + leaderboard (Phase 2)
-│   ├── verification.py     # New member verification (Phase 2)
-│   ├── welcome.py          # Welcome embed on member join
-│   ├── reactions.py        # Passive keyword/emoji GIF reactions (Phase 2)
-│   ├── trivia.py           # Trivia game + meme GIFs (Phase 2)
-│   ├── jail.py             # Jail system (Phase 2)
-│   ├── vip.py              # Expiring VIP roles (Phase 2)
-│   └── moderation.py       # Admin /set* commands
-├── database/
-│   ├── models.py           # SQLAlchemy ORM models
-│   └── db.py               # Async engine + session factory
-└── utils/
-    ├── embeds.py           # Reusable pink embed builders
-    └── algorithms.py       # Coffee price algorithm
-```
