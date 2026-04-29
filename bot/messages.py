@@ -38,6 +38,8 @@ DM_FAILURE_RESPONSE = (
     "I couldn't DM you. Please enable DMs from server members and try again."
 )
 
+ALREADY_VERIFIED_RESPONSE = "You are already verified and cannot re-verify."
+
 UNAUTHORISED_STAFF_BUTTON_RESPONSE = (
     "You do not have permission to action verification requests."
 )
@@ -164,3 +166,53 @@ GENERAL_SUBMISSIVE_MESSAGES = (
     "Attention all Dommes, {user_mention} is here and is ready to serve.",
     "{user_mention} just joined and is ready to serve.",
 )
+
+DOMME_SETUP_INTRO_TITLE = "Welcome to The Butler Domme Profile Setup Tool Thingy (name is work in progress)"
+DOMME_SETUP_INTRO_DESCRIPTION = """This setup will help guide you through setting up a domme profile on the bot.
+
+This will help for features like Throne tracking (if possible), tribute tracking and coffee send alerts to subs. As well as a bunch of other features in future.
+
+This will also help build a profile that you can use to give others a quick intro about yourself in the server.
+
+Note this will be upgraded later on with feedback so if you think this is either shit or could be way better throw your suggestions and/or insults at the Semi useful sub and he’ll fix them.
+
+If you’re ready to proceed, click continue below. Or otherwise if you want to do this later, click Later below.
+
+NOTE: All questions are optional. If you do not want to answer something, click Skip."""
+
+DOMME_SETUP_NAME_TITLE = "Step 1: Your name and honorific"
+DOMME_SETUP_NAME_DESCRIPTION = """To make sure subs address you correctly, we need your name and honourifics."""
+
+DOMME_SETUP_DETAILS_TITLE = "Step 2: The nitty gritty"
+DOMME_SETUP_DETAILS_DESCRIPTION = """Fill out any of the below details you want included on your profile."""
+
+DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Payment methods"
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add any payment links or handles you want The Butler to keep on your profile."""
+
+DOMME_SETUP_THRONE_TITLE = "Step 4: Throne tracking"
+DOMME_SETUP_THRONE_DESCRIPTION = """You added a Throne link.
+
+Would you like to turn on Throne tracking for your profile?"""
+
+DOMME_SETUP_COFFEE_TITLE = "Step 5: Coffee feature"
+DOMME_SETUP_COFFEE_DESCRIPTION = """Would you like to sign up for coffee send alerts to subs?"""
+
+DOMME_SETUP_REVIEW_TITLE = "Step Final: Review"
+DOMME_SETUP_REVIEW_DESCRIPTION = """Please review your profile details below.
+
+Would you like to save this profile?"""
+
+DOMME_SETUP_COMPLETE_TITLE = "Your domme profile is all setup!"
+DOMME_SETUP_COMPLETE_DESCRIPTION = """Run !domme to show profile.
+
+Run !domme delete to delete."""
+
+DOMME_SETUP_LATER_TITLE = "Domme Profile Setup"
+DOMME_SETUP_LATER_DESCRIPTION = """No worries.
+
+Run !domme in the server whenever you're ready to continue."""
+
+DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
+DOMME_SETUP_CANCELLED_DESCRIPTION = """No changes were saved.
+
+Run !domme again whenever you're ready."""
