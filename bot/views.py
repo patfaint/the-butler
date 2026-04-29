@@ -422,6 +422,7 @@ class DommeDeleteConfirmView(discord.ui.View):
         super().__init__(timeout=120)
         self.service = service
         self.user_id = user_id
+        self.message: discord.Message | None = None
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
         if interaction.user.id == self.user_id:
@@ -449,6 +450,11 @@ class DommeDeleteConfirmView(discord.ui.View):
 
     async def on_timeout(self) -> None:
         _disable_all(self)
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
 
 
 class DommeNameModal(discord.ui.Modal, title="Name + Honorific"):
