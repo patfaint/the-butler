@@ -32,7 +32,9 @@ echo ""
 
 # ── 1. Pull latest code ───────────────────────────────────────────────────────
 info "Pulling latest changes from GitHub..."
-sudo -u "${BOT_USER}" git -C "${BOT_DIR}" fetch --prune
+if ! sudo -u "${BOT_USER}" git -C "${BOT_DIR}" fetch --prune; then
+  error "git fetch failed — aborting update to avoid deploying stale code."
+fi
 sudo -u "${BOT_USER}" git -C "${BOT_DIR}" reset --hard origin/main
 info "Code updated."
 
@@ -51,11 +53,16 @@ systemctl restart "${SERVICE_NAME}"
 info "Service restarted."
 
 # ── 5. Status check ───────────────────────────────────────────────────────────
-sleep 2
-if systemctl is-active --quiet "${SERVICE_NAME}"; then
-  info "The Butler is active and at your service. 🎩"
-else
-  error "Service failed to start. Run: sudo journalctl -u ${SERVICE_NAME} -n 50 --no-pager"
-fi
+# Wait up to 10 s for the service to become active before declaring failure.
+info "Waiting for service to become active..."
+for i in $(seq 1 5); do
+  sleep 2
+  if systemctl is-active --quiet "${SERVICE_NAME}"; then
+    info "The Butler is active and at your service. 🎩"
+    echo ""
+    exit 0
+  fi
+  warn "Service not yet active (attempt ${i}/5)..."
+done
 
-echo ""
+error "Service failed to start after 10 s. Run: sudo journalctl -u ${SERVICE_NAME} -n 50 --no-pager"

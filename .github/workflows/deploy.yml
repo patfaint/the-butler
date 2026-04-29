@@ -9,6 +9,8 @@ jobs:
   deploy:
     name: SSH deploy to EC2
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - name: Deploy — pull & restart on EC2
