@@ -65,4 +65,4 @@ for i in $(seq 1 5); do
   warn "Service not yet active (attempt ${i}/5)..."
 done
 
-error "Service failed to start after 10 s. Run: sudo journalctl -u ${SERVICE_NAME} -n 50 --no-pager"
+error "Service failed to start after 10 seconds. Run: sudo journalctl -u ${SERVICE_NAME} -n 50 --no-pager"
