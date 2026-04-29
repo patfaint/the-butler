@@ -48,6 +48,7 @@ log = logging.getLogger(__name__)
 class DommeProfileSession:
     user_id: int
     message: discord.Message | None = None
+    current_view: discord.ui.View | None = None
     name: str | None = None
     honorific: str | None = None
     pronouns: str | None = None
@@ -312,7 +313,7 @@ class VerificationService:
         )
         if not claimed:
             await interaction.followup.send(
-                "This verification request has already been processed.",
+                "This verification request is already being reviewed by another moderator or has already been processed.",
                 ephemeral=True,
             )
             return
@@ -821,6 +822,7 @@ class DommeProfileService:
         except (discord.Forbidden, discord.HTTPException):
             return False
 
+        session.current_view = view
         self.sessions[member.id] = session
         return True
 
@@ -1002,6 +1004,10 @@ class DommeProfileService:
         if session.message is None:
             return
 
+        previous_view = session.current_view
+        if previous_view and previous_view is not view:
+            previous_view.stop()
+
         try:
             if interaction.response.is_done():
                 await session.message.edit(embed=embed, view=view)
@@ -1009,6 +1015,7 @@ class DommeProfileService:
                 await interaction.response.edit_message(embed=embed, view=view)
                 if interaction.message:
                     session.message = interaction.message
+            session.current_view = view
         except discord.HTTPException:
             log.exception("Failed to update Domme profile setup for %s.", session.user_id)
             self.finish_session(session.user_id)
