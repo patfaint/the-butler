@@ -97,32 +97,59 @@ On first run, the bot will:
 
 ### Option A — EC2 (recommended for always-on)
 
-1. Launch an **EC2 t3.micro** instance (Amazon Linux 2 or Ubuntu 22.04).
-2. Install Python 3.11: `sudo dnf install python3.11` (or `apt install python3.11`)
-3. Clone this repo and follow steps 4–6 above.
-4. Set environment variables via **AWS Systems Manager Parameter Store** or a `.env` file (never commit secrets).
-5. Run as a systemd service:
+#### First-time installation
 
-```ini
-# /etc/systemd/system/butler.service
-[Unit]
-Description=The Butler Discord Bot
-After=network.target
-
-[Service]
-User=ec2-user
-WorkingDirectory=/home/ec2-user/the-butler
-ExecStart=/home/ec2-user/the-butler/venv/bin/python bot.py
-EnvironmentFile=/home/ec2-user/the-butler/.env
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-```
+1. Launch an **EC2 t3.micro** instance (Amazon Linux 2023 or Ubuntu 22.04).
+2. Open port **22** in the Security Group for your IP (or the GitHub Actions IP range if using the deploy workflow).
+3. SSH into the instance and run the one-line installer as root:
 
 ```bash
-sudo systemctl enable butler
-sudo systemctl start butler
+curl -fsSL https://raw.githubusercontent.com/patfaint/the-butler/main/install.sh | sudo bash
+```
+
+The script will:
+- Install Python 3.12 and Git
+- Create a dedicated `butler` system user
+- Clone the repo to `/home/butler/the-butler`
+- Create a Python virtual environment and install dependencies
+- Prompt for your `.env` values (`DISCORD_TOKEN`, `GUILD_ID`, etc.)
+- Register and start a **systemd service** (`the-butler`) that restarts automatically on failure
+
+#### Manual updates
+
+To pull the latest code and restart the service at any time:
+
+```bash
+sudo bash /home/butler/the-butler/update.sh
+```
+
+#### Automated deploys via GitHub Actions
+
+Every push to `main` automatically deploys to your EC2 instance using the workflow at `.github/workflows/deploy.yml`.
+
+**Required GitHub Secrets** (Settings → Secrets and variables → Actions → New repository secret):
+
+| Secret | Value |
+|---|---|
+| `EC2_HOST` | Your EC2 public IP or DNS hostname |
+| `EC2_USER` | SSH username (e.g. `ubuntu` or `ec2-user`) |
+| `EC2_SSH_KEY` | Contents of your EC2 private key (`~/.ssh/your-key.pem`) |
+
+The workflow SSHes into the instance and runs `update.sh`, which:
+1. `git fetch` + `git reset --hard origin/main` (clean pull)
+2. Upgrades Python dependencies
+3. Restarts the `the-butler` systemd service
+4. Verifies the service came back up
+
+> **Tip:** The SSH user (`EC2_USER`) must have `sudo` access to restart the systemd service without a password. On Amazon Linux / Ubuntu the default `ec2-user` / `ubuntu` accounts have this by default.
+
+#### Useful commands
+
+```bash
+sudo systemctl status the-butler     # service health
+sudo journalctl -u the-butler -f     # live logs
+sudo systemctl restart the-butler    # manual restart
+sudo bash /home/butler/the-butler/update.sh  # pull + restart
 ```
 
 ### Option B — AWS Lambda + EventBridge (for scheduled tasks only)
