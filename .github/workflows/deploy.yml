@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy
 
 on:
   push:
@@ -7,17 +7,23 @@ on:
 
 jobs:
   deploy:
-    name: SSH deploy to EC2
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
 
     steps:
-      - name: Deploy — pull & restart on EC2
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            sudo bash /home/butler/the-butler/update.sh
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT }}" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy The Butler
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" <<'EOF'
+            set -euo pipefail
+            cd /opt/the-butler/app
+            git pull --ff-only origin main
+            ./.venv/bin/python -m pip install --upgrade pip
+            ./.venv/bin/pip install -r requirements.txt
+            sudo systemctl restart the-butler
+          EOF

@@ -1,188 +1,225 @@
-# 🎩 The Butler
+# The Butler
 
-A professional Discord bot for **The Drain Server** — a polished, sassy butler who keeps order, tracks tributes, manages Domme profiles, and adds a touch of class to an 18+ findom/femdom community.
+The Butler is a production-ready Discord bot for The Drain Server. It handles welcomes, 18+ age verification, staff approval, role assignment, SQLite persistence, and a polished restricted help menu.
 
-Built with `discord.py` (slash commands), `SQLAlchemy` async, **Python 3.12**, and designed to be hosted on **AWS EC2**.
+## Features
 
----
+- Welcome embed when a member joins
+- Unverified role assignment on join
+- Persistent age verification panel
+- DM-based verification flow with approved links or image submissions
+- Domme/Submissive role selection during verification
+- Staff approval and denial buttons
+- SQLite persistence at `data/the_butler.sqlite3`
+- Public plain-text welcome after approval
+- Restricted `/help` command with paginated embeds
+- Production `install.sh` bootstrap script
+- Hardened `the-butler.service` systemd unit
+- GitHub Actions deployment workflow
 
-## 🛠 Tech Stack
+## Project Structure
 
-- **Python 3.12**
-- **discord.py ≥ 2.3** — slash commands via `app_commands`
-- **SQLAlchemy ≥ 2.0** (async) + **aiosqlite**
-- **APScheduler** — for timed events
-- **Tenor API** — for GIF reactions
-- **AWS EC2** — always-on, systemd-managed service
-
----
-
-## 📁 Project Structure
-
-```
-the-butler/
-├── bot.py                  # Entry point — Butler class + main()
-├── config.py               # Env var loader
+```text
+.
+├── README.md
 ├── requirements.txt
 ├── .env.example
-├── install.sh              # One-time EC2 setup
-├── update.sh               # Pull + restart (run by CI deploy)
-├── README.md
-├── cogs/                   # Slash-command cogs (add here)
-│   └── __init__.py
-├── database/
-│   ├── db.py               # Async engine + session factory
-│   ├── helpers.py          # Shared DB helpers (get_or_create_guild_config)
-│   └── models.py           # SQLAlchemy ORM models
-└── utils/
-    ├── embeds.py           # Reusable pink embed builders
-    └── algorithms.py       # Coffee price algorithm
+├── .gitignore
+├── install.sh
+├── main.py
+├── the-butler.service
+├── bot/
+│   ├── __init__.py
+│   ├── config.py
+│   ├── database.py
+│   ├── embeds.py
+│   ├── messages.py
+│   ├── views.py
+│   ├── verification.py
+│   └── utils.py
+├── data/
+│   └── .gitkeep
+└── .github/
+    └── workflows/
+        └── deploy.yml
 ```
 
----
+## Discord Developer Portal Setup
 
-## 🚀 Local Development
+1. Create an application in the Discord Developer Portal.
+2. Add a bot to the application.
+3. Copy the bot token and store it only in your local `.env` or on the server.
+4. Enable these privileged gateway intents:
+   - `MESSAGE CONTENT`
+   - `MEMBERS`
+5. Invite the bot with these permissions:
+   - Send Messages
+   - Embed Links
+   - Attach Files
+   - Read Message History
+   - Use Slash Commands
+   - Manage Roles
+   - View Channels
 
-### 1. Create the Discord Application
+The bot role must be above the Unverified, Verified, Domme, and Submissive roles in Discord role order.
 
-1. Go to [discord.com/developers/applications](https://discord.com/developers/applications) and click **New Application**.
-2. Name it **The Butler** and save.
-3. Go to **Bot** → click **Add Bot**.
-4. Under **Privileged Gateway Intents**, enable:
-   - **Server Members Intent**
-   - **Message Content Intent**
-5. Copy the **Bot Token** — you'll need it shortly.
+## Server Setup
 
-### 2. Invite the Bot to Your Server
+Create these channels and roles before starting the bot:
 
-In the **OAuth2 → URL Generator** section:
-- Scopes: `bot`, `applications.commands`
-- Bot Permissions: `Administrator` (or at minimum: Manage Roles, Send Messages, Embed Links, Read Message History)
+Channels:
 
-Open the generated URL in your browser and select your server.
+- Welcome channel
+- Verification channel
+- Verification log channel
+- General channel
+- Roles channel
+- Introductions channel
 
-### 3. Get Your Guild (Server) ID
+Roles:
 
-In Discord:
-- Enable **Developer Mode** (User Settings → Advanced → Developer Mode)
-- Right-click your server icon → **Copy Server ID**
+- Unverified
+- Verified
+- Domme
+- Submissive
+- Moderation
 
-### 4. Configure Environment Variables
+Copy each channel and role ID into `.env`.
+
+## Local Setup
 
 ```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Fill in `.env`:
+Edit `.env`, then run:
+
+```bash
+python main.py
+```
+
+`GUILD_ID` is optional but recommended while testing because it syncs slash commands to one server immediately.
+
+## Environment Variables
 
 ```env
-DISCORD_TOKEN=your_bot_token_here
-GUILD_ID=your_server_id_here
-TENOR_API_KEY=your_tenor_api_key_here   # optional
-DATABASE_URL=sqlite+aiosqlite:///./butler.db
+DISCORD_TOKEN=
+GUILD_ID=
+WELCOME_CHANNEL_ID=
+VERIFICATION_CHANNEL_ID=
+VERIFY_LOG_CHANNEL_ID=
+GENERAL_CHANNEL_ID=
+ROLES_CHANNEL_ID=
+INTRODUCTIONS_CHANNEL_ID=
+UNVERIFIED_ROLE_ID=
+VERIFIED_ROLE_ID=
+DOMME_ROLE_ID=
+SUBMISSIVE_ROLE_ID=
+MODERATION_ROLE_ID=
+DATABASE_PATH=data/the_butler.sqlite3
 ```
 
-### 5. Install Dependencies
+Never commit `.env`. The token belongs only on your machine or server.
+
+## Slash Commands
+
+- `/setup-verification` posts the verification panel in the configured verification channel.
+- `/verify-status` checks a user's verification status.
+- `/verify-cleanup` shows users who still have the Unverified role.
+- `/help` shows the restricted bot help menu.
+
+`/help` only works for these Discord user IDs:
+
+- `1493691258873319454`
+- `1299308718009356289`
+
+## Production Install
+
+Run the installer on a fresh Linux server:
 
 ```bash
-python3.12 -m venv venv
-source venv/bin/activate   # Windows: venv\Scripts\activate
-pip install -r requirements.txt
+sudo bash install.sh
 ```
 
-### 6. Run the Bot
+The installer:
+
+- Installs `git`, `python3`, `python3-venv`, and `pip`
+- Creates the `butlerbot` runtime user
+- Creates `/opt/the-butler/app`, `/opt/the-butler/data`, and `/opt/the-butler/logs`
+- Clones this repository
+- Creates a virtual environment
+- Installs dependencies
+- Prompts for the Discord token, channel IDs, and role IDs
+- Writes `/opt/the-butler/app/.env`
+- Sets `chmod 600` on `.env`
+- Installs and starts `the-butler.service`
+
+Useful commands after install:
 
 ```bash
-python bot.py
+sudo systemctl status the-butler
+sudo journalctl -u the-butler -f
+sudo systemctl restart the-butler
 ```
 
-On first run, the bot will:
-- Create the SQLite database (`butler.db`) with all tables
-- Sync slash commands to your guild (available within seconds)
-- Set its status to *"At your service. 🎩"*
+## Systemd Security
 
----
+The bot runs as `butlerbot`, not root. The service uses privilege restrictions and allows writes only to:
 
-## ☁️ Deploying on AWS EC2
+- `/opt/the-butler/app`
+- `/opt/the-butler/data`
+- `/opt/the-butler/logs`
 
-### First-time installation
+Keep the runtime user separate from the deploy user. The deploy user should SSH into the server, update `/opt/the-butler/app`, install dependencies, and restart the service through `sudo`.
 
-1. Launch an **EC2 t3.micro** instance (Amazon Linux 2023 or Ubuntu 22.04).
-2. Open port **22** in the Security Group for your IP (or the GitHub Actions IP range if using the deploy workflow).
-3. SSH into the instance and run the one-line installer as root:
+## GitHub Actions Deploy
+
+The workflow in `.github/workflows/deploy.yml` deploys on pushes to `main`.
+
+Add these GitHub repository secrets:
+
+- `DEPLOY_HOST`: server hostname or IP
+- `DEPLOY_USER`: SSH deploy user, not `butlerbot`
+- `DEPLOY_SSH_KEY`: private SSH key for the deploy user
+- `DEPLOY_PORT`: SSH port, usually `22`
+
+The workflow does not store or send the Discord token. The token stays in `/opt/the-butler/app/.env` on the server.
+
+The deploy user needs permission to run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/patfaint/the-butler/main/install.sh | sudo bash
+sudo systemctl restart the-butler
 ```
 
-The script will:
-- Install Python 3.12 and Git
-- Create a dedicated `butler` system user
-- Clone the repo to `/home/butler/the-butler`
-- Create a Python virtual environment and install dependencies
-- Prompt for your `.env` values (`DISCORD_TOKEN`, `GUILD_ID`, etc.)
-- Register and start a **systemd service** (`the-butler`) that restarts automatically on failure
+## Troubleshooting
 
-### Manual updates
+Slash commands are missing:
 
-To pull the latest code and restart the service at any time:
+- Confirm the bot is online.
+- Set `GUILD_ID` for immediate guild command syncing.
+- Reinvite the bot with `applications.commands`.
+
+The bot cannot assign roles:
+
+- Move the bot role above every role it manages.
+- Confirm `Manage Roles` is enabled.
+- Check the configured role IDs.
+
+Users cannot start verification:
+
+- Ask them to enable DMs from server members.
+- Confirm `MESSAGE CONTENT` and `MEMBERS` intents are enabled.
+
+Staff buttons do not work after restart:
+
+- Confirm pending requests exist in `data/the_butler.sqlite3`.
+- Check the service logs for startup or database errors.
+
+Check logs:
 
 ```bash
-sudo bash /home/butler/the-butler/update.sh
+sudo journalctl -u the-butler -f
 ```
-
-### Automated deploys via GitHub Actions
-
-Every push to `main` automatically deploys to your EC2 instance using the workflow at `.github/workflows/deploy.yml`.
-
-**Required GitHub Secrets** (Settings → Secrets and variables → Actions → New repository secret):
-
-| Secret | Value |
-|---|---|
-| `EC2_HOST` | Your EC2 public IP or DNS hostname |
-| `EC2_USER` | SSH username (e.g. `ubuntu` or `ec2-user`) |
-| `EC2_SSH_KEY` | Contents of your EC2 private key (`~/.ssh/your-key.pem`) |
-
-The workflow SSHes into the instance and runs `update.sh`, which:
-1. `git fetch` + `git reset --hard origin/main` (clean pull)
-2. Upgrades Python dependencies
-3. Restarts the `the-butler` systemd service
-4. Verifies the service came back up
-
-> **Tip:** The SSH user (`EC2_USER`) must have passwordless `sudo` access. On Amazon Linux / Ubuntu the default `ec2-user` / `ubuntu` accounts have this by default.
-
-### Useful commands
-
-```bash
-sudo systemctl status the-butler     # service health
-sudo journalctl -u the-butler -f     # live logs
-sudo systemctl restart the-butler    # manual restart
-sudo bash /home/butler/the-butler/update.sh  # pull + restart
-```
-
----
-
-## 🗄 Database Schema
-
-All tables are created automatically on startup via `database/models.py`.
-
-| Table | Purpose |
-|---|---|
-| `guild_config` | Per-server settings (role IDs, channel IDs) |
-| `domme_profiles` | Domme display name, Throne link, coffee scaling prefs |
-| `sub_profiles` | Sub verification status, puppy flag |
-| `tributes` | Every tribute logged through the bot |
-| `jail_records` | Active and historical jail sentences |
-| `vip_roles` | Time-limited VIP role assignments |
-| `tribute_streaks` | Consecutive-day tribute streaks per sub/domme pair |
-
----
-
-## 🎩 Butler Tone
-
-All bot messages are formal, polished, and slightly sassy:
-
-> *"As you wish, Mistress. 🎩"*
-> *"Your tribute has been recorded with the utmost discretion."*
-> *"I'm afraid that command is reserved for the Dommes, darling. 🎩"*
-> *"The Butler is always watching. 🎩"*
