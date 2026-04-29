@@ -750,7 +750,7 @@ class VerificationService:
     ) -> None:
         try:
             await message.edit(embed=embed, view=view)
-        except discord.HTTPException:
+        except (discord.Forbidden, discord.NotFound, discord.HTTPException):
             log.exception("Failed to edit DM message %s.", message.id)
 
     async def _get_member(
@@ -1074,11 +1074,13 @@ class VerificationCog(commands.Cog):
                 await ctx.reply("You do not have a saved Domme profile to delete.", mention_author=False)
                 return
 
-            await ctx.reply(
+            view = DommeDeleteConfirmView(self.domme_service, ctx.author.id)
+            reply = await ctx.reply(
                 "Are you sure you want to delete your Domme profile?",
-                view=DommeDeleteConfirmView(self.domme_service, ctx.author.id),
+                view=view,
                 mention_author=False,
             )
+            view.message = reply
             return
 
         if profile is not None:
