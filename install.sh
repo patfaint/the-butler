@@ -24,23 +24,50 @@ if ! command -v apt-get >/dev/null 2>&1; then
   exit 1
 fi
 
-prompt_value() {
+prompt_int() {
   local name="$1"
   local value=""
-  while [[ -z "${value}" ]]; do
+  while true; do
     read -r -p "${name}: " value
+    if [[ "${value}" =~ ^[0-9]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must be a numeric Discord ID."
   done
-  printf '%s' "${value}"
 }
 
-prompt_secret() {
+prompt_optional_int() {
   local name="$1"
   local value=""
-  while [[ -z "${value}" ]]; do
+  while true; do
+    read -r -p "${name}: " value
+    if [[ -z "${value}" || "${value}" =~ ^[0-9]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must be blank or a numeric Discord ID."
+  done
+}
+
+prompt_env_secret() {
+  local name="$1"
+  local value=""
+  while true; do
     read -r -s -p "${name}: " value
     echo
+    if [[ -n "${value}" && "${value}" =~ ^[A-Za-z0-9._-]+$ ]]; then
+      printf '%s' "${value}"
+      return
+    fi
+    echo "${name} must not contain spaces, quotes, #, or shell metacharacters."
   done
-  printf '%s' "${value}"
+}
+
+write_env_line() {
+  local name="$1"
+  local value="$2"
+  printf '%s=%s\n' "${name}" "${value}"
 }
 
 echo "Installing system packages..."
@@ -99,36 +126,36 @@ echo "Creating Python virtual environment..."
 "${APP_DIR}/.venv/bin/pip" install -r "${APP_DIR}/requirements.txt"
 
 echo "Enter Discord and server configuration."
-DISCORD_TOKEN="$(prompt_secret "DISCORD_TOKEN")"
-read -r -p "GUILD_ID (optional): " GUILD_ID
-WELCOME_CHANNEL_ID="$(prompt_value "WELCOME_CHANNEL_ID")"
-VERIFICATION_CHANNEL_ID="$(prompt_value "VERIFICATION_CHANNEL_ID")"
-VERIFY_LOG_CHANNEL_ID="$(prompt_value "VERIFY_LOG_CHANNEL_ID")"
-GENERAL_CHANNEL_ID="$(prompt_value "GENERAL_CHANNEL_ID")"
-ROLES_CHANNEL_ID="$(prompt_value "ROLES_CHANNEL_ID")"
-INTRODUCTIONS_CHANNEL_ID="$(prompt_value "INTRODUCTIONS_CHANNEL_ID")"
-UNVERIFIED_ROLE_ID="$(prompt_value "UNVERIFIED_ROLE_ID")"
-VERIFIED_ROLE_ID="$(prompt_value "VERIFIED_ROLE_ID")"
-DOMME_ROLE_ID="$(prompt_value "DOMME_ROLE_ID")"
-SUBMISSIVE_ROLE_ID="$(prompt_value "SUBMISSIVE_ROLE_ID")"
-MODERATION_ROLE_ID="$(prompt_value "MODERATION_ROLE_ID")"
+DISCORD_TOKEN="$(prompt_env_secret "DISCORD_TOKEN")"
+GUILD_ID="$(prompt_optional_int "GUILD_ID (optional)")"
+WELCOME_CHANNEL_ID="$(prompt_int "WELCOME_CHANNEL_ID")"
+VERIFICATION_CHANNEL_ID="$(prompt_int "VERIFICATION_CHANNEL_ID")"
+VERIFY_LOG_CHANNEL_ID="$(prompt_int "VERIFY_LOG_CHANNEL_ID")"
+GENERAL_CHANNEL_ID="$(prompt_int "GENERAL_CHANNEL_ID")"
+ROLES_CHANNEL_ID="$(prompt_int "ROLES_CHANNEL_ID")"
+INTRODUCTIONS_CHANNEL_ID="$(prompt_int "INTRODUCTIONS_CHANNEL_ID")"
+UNVERIFIED_ROLE_ID="$(prompt_int "UNVERIFIED_ROLE_ID")"
+VERIFIED_ROLE_ID="$(prompt_int "VERIFIED_ROLE_ID")"
+DOMME_ROLE_ID="$(prompt_int "DOMME_ROLE_ID")"
+SUBMISSIVE_ROLE_ID="$(prompt_int "SUBMISSIVE_ROLE_ID")"
+MODERATION_ROLE_ID="$(prompt_int "MODERATION_ROLE_ID")"
 
-cat > "${APP_DIR}/.env" <<ENV
-DISCORD_TOKEN=${DISCORD_TOKEN}
-GUILD_ID=${GUILD_ID}
-WELCOME_CHANNEL_ID=${WELCOME_CHANNEL_ID}
-VERIFICATION_CHANNEL_ID=${VERIFICATION_CHANNEL_ID}
-VERIFY_LOG_CHANNEL_ID=${VERIFY_LOG_CHANNEL_ID}
-GENERAL_CHANNEL_ID=${GENERAL_CHANNEL_ID}
-ROLES_CHANNEL_ID=${ROLES_CHANNEL_ID}
-INTRODUCTIONS_CHANNEL_ID=${INTRODUCTIONS_CHANNEL_ID}
-UNVERIFIED_ROLE_ID=${UNVERIFIED_ROLE_ID}
-VERIFIED_ROLE_ID=${VERIFIED_ROLE_ID}
-DOMME_ROLE_ID=${DOMME_ROLE_ID}
-SUBMISSIVE_ROLE_ID=${SUBMISSIVE_ROLE_ID}
-MODERATION_ROLE_ID=${MODERATION_ROLE_ID}
-DATABASE_PATH=data/the_butler.sqlite3
-ENV
+{
+  write_env_line "DISCORD_TOKEN" "${DISCORD_TOKEN}"
+  write_env_line "GUILD_ID" "${GUILD_ID}"
+  write_env_line "WELCOME_CHANNEL_ID" "${WELCOME_CHANNEL_ID}"
+  write_env_line "VERIFICATION_CHANNEL_ID" "${VERIFICATION_CHANNEL_ID}"
+  write_env_line "VERIFY_LOG_CHANNEL_ID" "${VERIFY_LOG_CHANNEL_ID}"
+  write_env_line "GENERAL_CHANNEL_ID" "${GENERAL_CHANNEL_ID}"
+  write_env_line "ROLES_CHANNEL_ID" "${ROLES_CHANNEL_ID}"
+  write_env_line "INTRODUCTIONS_CHANNEL_ID" "${INTRODUCTIONS_CHANNEL_ID}"
+  write_env_line "UNVERIFIED_ROLE_ID" "${UNVERIFIED_ROLE_ID}"
+  write_env_line "VERIFIED_ROLE_ID" "${VERIFIED_ROLE_ID}"
+  write_env_line "DOMME_ROLE_ID" "${DOMME_ROLE_ID}"
+  write_env_line "SUBMISSIVE_ROLE_ID" "${SUBMISSIVE_ROLE_ID}"
+  write_env_line "MODERATION_ROLE_ID" "${MODERATION_ROLE_ID}"
+  write_env_line "DATABASE_PATH" "${DATA_DIR}/the_butler.sqlite3"
+} > "${APP_DIR}/.env"
 
 chmod 600 "${APP_DIR}/.env"
 chown "${RUNTIME_USER}:${RUNTIME_USER}" "${APP_DIR}/.env"

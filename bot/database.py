@@ -113,7 +113,7 @@ class Database:
         selected_role: str | None,
         status: str = "pending",
     ) -> int:
-        cursor = await self.connection.execute(
+        async with self.connection.execute(
             """
             INSERT INTO verification_requests (
                 user_id,
@@ -137,9 +137,10 @@ class Database:
                 status,
                 _utc_now(),
             ),
-        )
+        ) as cursor:
+            request_id = int(cursor.lastrowid)
         await self.connection.commit()
-        return int(cursor.lastrowid)
+        return request_id
 
     async def set_log_message(
         self,
@@ -148,14 +149,15 @@ class Database:
         log_message_id: int,
         log_channel_id: int,
     ) -> None:
-        await self.connection.execute(
+        async with self.connection.execute(
             """
             UPDATE verification_requests
             SET log_message_id = ?, log_channel_id = ?
             WHERE id = ?
             """,
             (log_message_id, log_channel_id, request_id),
-        )
+        ):
+            pass
         await self.connection.commit()
 
     async def get_request(self, request_id: int) -> VerificationRequest | None:
@@ -199,7 +201,7 @@ class Database:
         )
 
     async def get_pending_log_requests(self) -> list[VerificationRequest]:
-        cursor = await self.connection.execute(
+        async with self.connection.execute(
             """
             SELECT *
             FROM verification_requests
@@ -208,8 +210,8 @@ class Database:
             AND log_channel_id IS NOT NULL
             ORDER BY id ASC
             """
-        )
-        rows = await cursor.fetchall()
+        ) as cursor:
+            rows = await cursor.fetchall()
         return [VerificationRequest.from_row(row) for row in rows]
 
     async def mark_reviewed(
@@ -219,24 +221,25 @@ class Database:
         status: str,
         reviewed_by: int | None,
     ) -> bool:
-        cursor = await self.connection.execute(
+        async with self.connection.execute(
             """
             UPDATE verification_requests
             SET status = ?, reviewed_at = ?, reviewed_by = ?
             WHERE id = ? AND status = 'pending'
             """,
             (status, _utc_now(), reviewed_by, request_id),
-        )
+        ) as cursor:
+            updated = cursor.rowcount > 0
         await self.connection.commit()
-        return cursor.rowcount > 0
+        return updated
 
     async def _fetch_one(
         self,
         query: str,
         params: tuple[Any, ...],
     ) -> VerificationRequest | None:
-        cursor = await self.connection.execute(query, params)
-        row = await cursor.fetchone()
+        async with self.connection.execute(query, params) as cursor:
+            row = await cursor.fetchone()
         if row is None:
             return None
         return VerificationRequest.from_row(row)

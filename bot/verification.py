@@ -39,6 +39,7 @@ class VerificationService:
         self.config = config
         self.database = database
         self.active_sessions: set[tuple[int, int]] = set()
+        self.session_tasks: set[asyncio.Task[None]] = set()
 
     async def restore_persistent_views(self) -> None:
         self.bot.add_view(VerificationPanelView(self))
@@ -118,7 +119,30 @@ class VerificationService:
             "I've sent you a DM with verification instructions.",
             ephemeral=True,
         )
-        asyncio.create_task(self._run_dm_flow(interaction.user, interaction.guild, key))
+        self._start_dm_flow(interaction.user, interaction.guild, key)
+
+    def _start_dm_flow(
+        self,
+        member: discord.Member,
+        guild: discord.Guild,
+        key: tuple[int, int],
+    ) -> None:
+        task = asyncio.create_task(self._run_dm_flow_safely(member, guild, key))
+        self.session_tasks.add(task)
+        task.add_done_callback(self.session_tasks.discard)
+
+    async def _run_dm_flow_safely(
+        self,
+        member: discord.Member,
+        guild: discord.Guild,
+        key: tuple[int, int],
+    ) -> None:
+        try:
+            await self._run_dm_flow(member, guild, key)
+        except Exception:
+            log.exception("Unexpected verification session failure for %s.", member.id)
+            self.active_sessions.discard(key)
+            await safe_dm(member, embed=embeds.session_expired_dm_embed())
 
     async def setup_verification_panel(self, interaction: discord.Interaction) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):

@@ -1,3 +1,4 @@
+# Project policy requires /help access to be limited to these exact Discord users.
 HELP_ALLOWED_USER_IDS = {
     1493691258873319454,
     1299308718009356289,

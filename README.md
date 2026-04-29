@@ -154,9 +154,10 @@ The installer:
 - Clones this repository
 - Creates a virtual environment
 - Installs dependencies
-- Prompts for the Discord token, channel IDs, and role IDs
+- Prompts for the Discord token, channel IDs, and role IDs with numeric ID validation
 - Writes `/opt/the-butler/app/.env`
 - Sets `chmod 600` on `.env`
+- Stores the production SQLite database at `/opt/the-butler/data/the_butler.sqlite3`
 - Installs and starts `the-butler.service`
 
 Useful commands after install:
@@ -189,7 +190,7 @@ Add these GitHub repository secrets:
 - `DEPLOY_PORT`: SSH port, usually `22`
 - `DEPLOY_KNOWN_HOSTS`: pinned SSH known_hosts entry for the server
 
-The workflow does not store or send the Discord token. The token stays in `/opt/the-butler/app/.env` on the server.
+The workflow stops the service, pulls the latest code, updates dependencies, refreshes the systemd unit, reloads systemd, and starts the service again. It does not store or send the Discord token. The token stays in `/opt/the-butler/app/.env` on the server.
 
 Create `DEPLOY_KNOWN_HOSTS` from a trusted machine and verify the fingerprint before saving it:
 
