@@ -140,6 +140,10 @@ Slash commands:
 
 - `/help`
   Shows the restricted bot help menu.
+- `/domme`
+  Starts Domme profile setup if no profile exists, or shows the saved profile.
+- `/domme action:delete`
+  Deletes the saved Domme profile after confirmation.
 
 `/help` only works for these Discord user IDs:
 
@@ -161,7 +165,7 @@ Users cannot start verification again if they already have the Verified role, an
 
 ## Domme Profile Setup
 
-Run `!domme` in a server channel as a member with `DOMME_ROLE_ID`.
+Run `/domme` or `!domme` in a server channel as a member with `DOMME_ROLE_ID`.
 
 If no profile exists, The Butler replies in-channel and starts a DM setup flow. The DM uses one edited message across the setup steps:
 
