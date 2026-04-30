@@ -616,5 +616,5 @@ def domme_profile_embed(
         created_label = created.strftime("%m/%d/%Y")
     except ValueError:
         created_label = profile.created_at
-    embed.set_footer(text=f"The Drain Server • Domme Profile • Since {created_label}")
+    embed.set_footer(text=f"The Drain Server • Domme Profile • Created {created_label}")
     return embed

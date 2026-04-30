@@ -1071,7 +1071,7 @@ class VerificationCog(commands.Cog):
             # Check if it's a mention or user ID
             resolved = None
             if arg.startswith("<@") and arg.endswith(">"):
-                uid_str = arg.strip("<@!>")
+                uid_str = arg[2:-1].lstrip("!")  # Handle both <@123> and <@!123>
                 try:
                     uid = int(uid_str)
                     resolved = ctx.guild.get_member(uid)
