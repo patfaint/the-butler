@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 
 import discord
 
-from bot.config import BotConfig
-from bot.database import VerificationRequest
 from bot import messages
+from bot.config import BotConfig
+from bot.database import DommeProfile, VerificationRequest
 from bot.utils import mention_channel, user_mention
 
 PURPLE = discord.Color.from_rgb(181, 101, 255)
@@ -17,8 +17,78 @@ ORANGE = discord.Color.from_rgb(245, 145, 61)
 SOFT_DARK = discord.Color.from_rgb(42, 37, 58)
 
 
+def _styled_embed(
+    *,
+    title: str,
+    description: str,
+    color: discord.Color,
+) -> discord.Embed:
+    return discord.Embed(title=title, description=description, color=color)
+
+
+def _profile_value(value: str | None) -> str:
+    return value.strip() if value and value.strip() else "Not provided"
+
+
+def _feature_value(enabled: bool) -> str:
+    return "Yes" if enabled else "No"
+
+
+def _add_chunked_field(
+    embed: discord.Embed,
+    *,
+    name: str,
+    lines: list[str],
+) -> None:
+    chunks: list[str] = []
+    current_lines: list[str] = []
+    current_length = 0
+
+    for line in lines:
+        line_length = len(line)
+        projected_length = line_length if not current_lines else current_length + 1 + line_length
+        if current_lines and projected_length > 1024:
+            chunks.append("\n".join(current_lines))
+            current_lines = [line]
+            current_length = line_length
+            continue
+
+        current_lines.append(line)
+        current_length = projected_length
+
+    if current_lines:
+        chunks.append("\n".join(current_lines))
+
+    for index, chunk in enumerate(chunks):
+        heading = name if index == 0 else f"{name} (cont.)"
+        embed.add_field(name=heading, value=chunk, inline=False)
+
+
+def _payment_lines(
+    *,
+    throne: str | None,
+    paypal: str | None,
+    youpay: str | None,
+    cashapp: str | None,
+    venmo: str | None,
+    beemit: str | None,
+    loyalfans: str | None,
+    onlyfans: str | None,
+) -> list[str]:
+    return [
+        f"**Throne:** {_profile_value(throne)}",
+        f"**PayPal:** {_profile_value(paypal)}",
+        f"**YouPay:** {_profile_value(youpay)}",
+        f"**Cashapp:** {_profile_value(cashapp)}",
+        f"**Venmo:** {_profile_value(venmo)}",
+        f"**Beemit:** {_profile_value(beemit)}",
+        f"**Loyalfans:** {_profile_value(loyalfans)}",
+        f"**Onlyfans:** {_profile_value(onlyfans)}",
+    ]
+
+
 def welcome_embed(member: discord.Member) -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.WELCOME_TITLE,
         description=messages.WELCOME_DESCRIPTION.format(user_mention=member.mention),
         color=PINK,
@@ -29,7 +99,7 @@ def welcome_embed(member: discord.Member) -> discord.Embed:
 
 
 def verification_panel_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.VERIFICATION_PANEL_TITLE,
         description=messages.VERIFICATION_PANEL_DESCRIPTION,
         color=PURPLE,
@@ -38,28 +108,32 @@ def verification_panel_embed() -> discord.Embed:
     return embed
 
 
-def initial_verification_dm_embed() -> discord.Embed:
-    embed = discord.Embed(
+def initial_verification_dm_embed(notice: str | None = None) -> discord.Embed:
+    embed = _styled_embed(
         title=messages.INITIAL_VERIFICATION_DM_TITLE,
         description=messages.INITIAL_VERIFICATION_DM_DESCRIPTION,
         color=PURPLE,
     )
+    if notice:
+        embed.add_field(name="Invalid Submission", value=notice, inline=False)
     embed.set_footer(text="The Butler • Verification expires in 5 minutes")
     return embed
 
 
-def role_prompt_embed() -> discord.Embed:
-    embed = discord.Embed(
+def role_prompt_embed(selected_role: str | None = None) -> discord.Embed:
+    embed = _styled_embed(
         title=messages.ROLE_PROMPT_TITLE,
         description=messages.ROLE_PROMPT_DESCRIPTION,
         color=PINK,
     )
+    if selected_role:
+        embed.add_field(name="Selected Role", value=selected_role, inline=False)
     embed.set_footer(text="The Butler • Role selection")
     return embed
 
 
 def pending_review_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.PENDING_REVIEW_TITLE,
         description=messages.PENDING_REVIEW_DESCRIPTION,
         color=PURPLE,
@@ -69,7 +143,7 @@ def pending_review_embed() -> discord.Embed:
 
 
 def approved_dm_embed(config: BotConfig) -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.APPROVED_DM_TITLE,
         description=messages.APPROVED_DM_DESCRIPTION.format(
             roles_channel=mention_channel(config.roles_channel_id),
@@ -83,7 +157,7 @@ def approved_dm_embed(config: BotConfig) -> discord.Embed:
 
 
 def denied_underage_dm_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.DENIED_UNDERAGE_DM_TITLE,
         description=messages.DENIED_UNDERAGE_DM_DESCRIPTION,
         color=RED,
@@ -93,7 +167,7 @@ def denied_underage_dm_embed() -> discord.Embed:
 
 
 def denied_invalid_dm_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.DENIED_INVALID_DM_TITLE,
         description=messages.DENIED_INVALID_DM_DESCRIPTION,
         color=ORANGE,
@@ -103,7 +177,7 @@ def denied_invalid_dm_embed() -> discord.Embed:
 
 
 def session_expired_dm_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.SESSION_EXPIRED_DM_TITLE,
         description=messages.SESSION_EXPIRED_DM_DESCRIPTION,
         color=SOFT_DARK,
@@ -113,7 +187,7 @@ def session_expired_dm_embed() -> discord.Embed:
 
 
 def invalid_submission_dm_embed() -> discord.Embed:
-    embed = discord.Embed(
+    embed = _styled_embed(
         title=messages.INVALID_SUBMISSION_DM_TITLE,
         description=messages.INVALID_SUBMISSION_DM_DESCRIPTION,
         color=ORANGE,
@@ -241,34 +315,291 @@ def verification_cleanup_embed(
 def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
     pages = (
         (
-            "Verification Commands",
+            "Verification",
+            PINK,
+            "Verification commands and panel setup.",
             (
-                "**/setup-verification**\n"
-                "Posts the verification panel in the configured verification channel.\n\n"
-                "**/verify-status**\n"
-                "Checks a user's verification status."
+                ("!setup_verification", "Posts the verification panel in the configured verification channel."),
+                ("!verify_status <user>", "Checks a user's verification status."),
             ),
         ),
         (
-            "Moderation Commands",
+            "Moderation",
+            PURPLE,
+            "Moderation tools for the verification queue.",
             (
-                "**/verify-cleanup**\n"
-                "Shows users who still have the Unverified role."
+                ("!verify_cleanup", "Shows users who still have the Unverified role."),
             ),
         ),
         (
-            "System Commands",
+            "System",
+            SOFT_DARK,
+            "Restricted system controls and reference tools.",
             (
-                "**/help**\n"
-                "Shows the restricted bot help menu."
+                ("/help", "Shows the restricted bot help menu."),
+            ),
+        ),
+        (
+            "Profiles",
+            PINK,
+            "Domme profile setup and profile management.",
+            (
+                ("!domme", "Starts your Domme profile setup or shows your saved profile."),
+                ("!domme delete", "Deletes your saved Domme profile after confirmation."),
             ),
         ),
     )
-    title, description = pages[page_index]
+    section, color, blurb, entries = pages[page_index]
     embed = discord.Embed(
-        title=title,
-        description=description,
-        color=PINK if page_index == 0 else PURPLE,
+        title="The Butler Command Guide",
+        description=f"**{section}**\n{blurb}",
+        color=color,
     )
+    for name, description in entries:
+        embed.add_field(name=name, value=description, inline=False)
     embed.set_footer(text=f"The Butler • Page {page_index + 1}/{total_pages}")
+    return embed
+
+
+def domme_setup_intro_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_INTRO_TITLE,
+        description=messages.DOMME_SETUP_INTRO_DESCRIPTION,
+        color=PINK,
+    )
+    embed.set_footer(text="The Butler • Domme profile setup")
+    return embed
+
+
+def domme_setup_name_embed(*, name: str | None, honorific: str | None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_NAME_TITLE,
+        description=messages.DOMME_SETUP_NAME_DESCRIPTION,
+        color=PINK,
+    )
+    embed.add_field(name="Name", value=_profile_value(name), inline=False)
+    embed.add_field(name="Honorific", value=_profile_value(honorific), inline=False)
+    embed.set_footer(text="The Butler • Step 1/5")
+    return embed
+
+
+def domme_setup_details_embed(
+    *,
+    pronouns: str | None,
+    age: str | None,
+    tribute_price: str | None,
+) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_DETAILS_TITLE,
+        description=messages.DOMME_SETUP_DETAILS_DESCRIPTION,
+        color=PURPLE,
+    )
+    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
+    embed.add_field(name="Age", value=_profile_value(age), inline=True)
+    embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
+    embed.set_footer(text="The Butler • Step 2/5")
+    return embed
+
+
+def domme_setup_payments_embed(
+    *,
+    throne: str | None,
+    paypal: str | None,
+    youpay: str | None,
+    cashapp: str | None,
+    venmo: str | None,
+    beemit: str | None,
+    loyalfans: str | None,
+    onlyfans: str | None,
+) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_PAYMENTS_TITLE,
+        description=messages.DOMME_SETUP_PAYMENTS_DESCRIPTION,
+        color=PURPLE,
+    )
+    embed.add_field(name="Throne", value=_profile_value(throne), inline=False)
+    embed.add_field(name="PayPal", value=_profile_value(paypal), inline=True)
+    embed.add_field(name="YouPay", value=_profile_value(youpay), inline=True)
+    embed.add_field(name="Cashapp", value=_profile_value(cashapp), inline=True)
+    embed.add_field(name="Venmo", value=_profile_value(venmo), inline=True)
+    embed.add_field(name="Beemit", value=_profile_value(beemit), inline=True)
+    embed.add_field(name="Loyalfans", value=_profile_value(loyalfans), inline=True)
+    embed.add_field(name="Onlyfans", value=_profile_value(onlyfans), inline=True)
+    embed.set_footer(text="The Butler • Step 3/5")
+    return embed
+
+
+def domme_setup_throne_embed(*, throne: str | None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_THRONE_TITLE,
+        description=messages.DOMME_SETUP_THRONE_DESCRIPTION,
+        color=PINK,
+    )
+    embed.add_field(name="Throne", value=_profile_value(throne), inline=False)
+    embed.set_footer(text="The Butler • Step 4/5")
+    return embed
+
+
+def domme_setup_coffee_embed(*, coffee_enabled: bool | None = None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_COFFEE_TITLE,
+        description=messages.DOMME_SETUP_COFFEE_DESCRIPTION,
+        color=PINK,
+    )
+    if coffee_enabled is not None:
+        embed.add_field(name="Current Selection", value=_feature_value(coffee_enabled), inline=False)
+    embed.set_footer(text="The Butler • Step 5/5")
+    return embed
+
+
+def domme_setup_review_embed(
+    *,
+    name: str | None,
+    honorific: str | None,
+    pronouns: str | None,
+    age: str | None,
+    tribute_price: str | None,
+    throne: str | None,
+    paypal: str | None,
+    youpay: str | None,
+    cashapp: str | None,
+    venmo: str | None,
+    beemit: str | None,
+    loyalfans: str | None,
+    onlyfans: str | None,
+    throne_tracking_enabled: bool,
+    coffee_enabled: bool,
+) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_REVIEW_TITLE,
+        description=messages.DOMME_SETUP_REVIEW_DESCRIPTION,
+        color=GREEN,
+    )
+    embed.add_field(
+        name="Identity",
+        value=(
+            f"**Name:** {_profile_value(name)}\n"
+            f"**Honorific:** {_profile_value(honorific)}\n"
+            f"**Pronouns:** {_profile_value(pronouns)}"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Details",
+        value=(
+            f"**Age:** {_profile_value(age)}\n"
+            f"**Tribute Fee Price:** {_profile_value(tribute_price)}"
+        ),
+        inline=False,
+    )
+    _add_chunked_field(
+        embed,
+        name="Payment Methods",
+        lines=_payment_lines(
+            throne=throne,
+            paypal=paypal,
+            youpay=youpay,
+            cashapp=cashapp,
+            venmo=venmo,
+            beemit=beemit,
+            loyalfans=loyalfans,
+            onlyfans=onlyfans,
+        ),
+    )
+    embed.add_field(
+        name="Features",
+        value=(
+            f"**Throne Tracking:** {_feature_value(throne_tracking_enabled)}\n"
+            f"**Coffee Feature:** {_feature_value(coffee_enabled)}"
+        ),
+        inline=False,
+    )
+    embed.set_footer(text="The Butler • Ready to save")
+    return embed
+
+
+def domme_setup_complete_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_COMPLETE_TITLE,
+        description=messages.DOMME_SETUP_COMPLETE_DESCRIPTION,
+        color=GREEN,
+    )
+    embed.set_footer(text="The Butler • Profile saved")
+    return embed
+
+
+def domme_setup_later_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_LATER_TITLE,
+        description=messages.DOMME_SETUP_LATER_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.set_footer(text="The Butler • Setup paused")
+    return embed
+
+
+def domme_setup_cancelled_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_CANCELLED_TITLE,
+        description=messages.DOMME_SETUP_CANCELLED_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.set_footer(text="The Butler • Setup cancelled")
+    return embed
+
+
+def domme_profile_embed(
+    profile: DommeProfile,
+    member: discord.Member | discord.User,
+) -> discord.Embed:
+    embed = discord.Embed(
+        title=f"{member.display_name if isinstance(member, discord.Member) else member.name}'s Domme Profile",
+        color=PINK,
+    )
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(
+        name="Identity",
+        value=(
+            f"**Name:** {_profile_value(profile.name)}\n"
+            f"**Honorific:** {_profile_value(profile.honorific)}\n"
+            f"**Pronouns:** {_profile_value(profile.pronouns)}"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="Details",
+        value=(
+            f"**Age:** {_profile_value(profile.age)}\n"
+            f"**Tribute Fee Price:** {_profile_value(profile.tribute_price)}"
+        ),
+        inline=False,
+    )
+    _add_chunked_field(
+        embed,
+        name="Payment Methods",
+        lines=_payment_lines(
+            throne=profile.throne,
+            paypal=profile.paypal,
+            youpay=profile.youpay,
+            cashapp=profile.cashapp,
+            venmo=profile.venmo,
+            beemit=profile.beemit,
+            loyalfans=profile.loyalfans,
+            onlyfans=profile.onlyfans,
+        ),
+    )
+    embed.add_field(
+        name="Features",
+        value=(
+            f"**Throne Tracking:** {_feature_value(profile.throne_tracking_enabled)}\n"
+            f"**Coffee Feature:** {_feature_value(profile.coffee_enabled)}"
+        ),
+        inline=False,
+    )
+    try:
+        created = datetime.fromisoformat(profile.created_at)
+        created_label = created.strftime("%m/%d/%Y")
+    except ValueError:
+        created_label = profile.created_at
+    embed.set_footer(text=f"The Butler • Profile created {created_label}")
     return embed

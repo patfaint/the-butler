@@ -22,10 +22,14 @@ class VerificationSubmission:
     verification_value: str
 
 
-def has_moderation_permissions(member: discord.Member, config: BotConfig) -> bool:
-    if member.guild_permissions.administrator or member.guild_permissions.manage_guild:
-        return True
+def has_moderation_role(member: discord.Member, config: BotConfig) -> bool:
     return any(role.id == config.moderation_role_id for role in member.roles)
+
+
+def has_admin_command_permissions(member: discord.Member, config: BotConfig) -> bool:
+    if member.guild_permissions.administrator:
+        return True
+    return has_moderation_role(member, config)
 
 
 async def resolve_message_channel(

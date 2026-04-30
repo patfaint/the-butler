@@ -8,7 +8,18 @@ from bot import messages
 from bot.embeds import help_page_embed
 
 if TYPE_CHECKING:
-    from bot.verification import VerificationService
+    from bot.verification import DommeProfileSession, DommeProfileService, VerificationService
+
+
+def _clean_optional(value: str) -> str | None:
+    cleaned = value.strip()
+    return cleaned or None
+
+
+def _disable_all(view: discord.ui.View) -> None:
+    for item in view.children:
+        if hasattr(item, "disabled"):
+            item.disabled = True
 
 
 class VerificationPanelView(discord.ui.View):
@@ -63,22 +74,17 @@ class RoleSelectionView(discord.ui.View):
 
     async def _select(self, interaction: discord.Interaction, value: str) -> None:
         self.selection = value
-        self._disable_all()
+        _disable_all(self)
         await interaction.response.edit_message(view=self)
         self.stop()
 
     async def on_timeout(self) -> None:
-        self._disable_all()
+        _disable_all(self)
         if self.message:
             try:
                 await self.message.edit(view=self)
             except discord.HTTPException:
                 pass
-
-    def _disable_all(self) -> None:
-        for item in self.children:
-            if hasattr(item, "disabled"):
-                item.disabled = True
 
 
 class StaffReviewView(discord.ui.View):
@@ -127,7 +133,6 @@ class StaffReviewView(discord.ui.View):
                     label="Open Link",
                     style=discord.ButtonStyle.link,
                     url=link_url,
-                    disabled=disabled,
                 )
             )
 
@@ -161,7 +166,7 @@ class HelpView(discord.ui.View):
         super().__init__(timeout=180)
         self.user_id = user_id
         self.current_page = 0
-        self.total_pages = 3
+        self.total_pages = 4
 
         self.previous_button = discord.ui.Button(
             label="<",
@@ -172,7 +177,7 @@ class HelpView(discord.ui.View):
         self.add_item(self.previous_button)
 
         self.page_button = discord.ui.Button(
-            label="Page 1/3",
+            label="Page 1/4",
             style=discord.ButtonStyle.secondary,
             disabled=True,
         )
@@ -213,7 +218,7 @@ class HelpView(discord.ui.View):
         await self._update(interaction)
 
     async def _close(self, interaction: discord.Interaction) -> None:
-        self._disable_all()
+        _disable_all(self)
         await interaction.response.edit_message(
             content="Help menu closed.",
             embed=None,
@@ -233,7 +238,375 @@ class HelpView(discord.ui.View):
         self.next_button.disabled = self.current_page == self.total_pages - 1
         self.page_button.label = f"Page {self.current_page + 1}/{self.total_pages}"
 
-    def _disable_all(self) -> None:
-        for item in self.children:
-            if hasattr(item, "disabled"):
-                item.disabled = True
+
+class DommeSetupView(discord.ui.View):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.session.user_id:
+            return True
+        await interaction.response.send_message("This setup is not for you.", ephemeral=True)
+        return False
+
+    async def on_timeout(self) -> None:
+        if self.session.current_view is not self:
+            return
+        _disable_all(self)
+        if self.session.message:
+            try:
+                await self.session.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+        self.session.current_view = None
+        self.service.finish_session(self.session.user_id)
+
+
+class DommeSetupIntroView(DommeSetupView):
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.primary)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_name_step(self.session, interaction)
+
+    @discord.ui.button(label="Later", style=discord.ButtonStyle.secondary)
+    async def later_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.service.finish_session(self.session.user_id)
+        await interaction.response.edit_message(
+            embed=self.service.build_later_embed(),
+            view=None,
+        )
+        self.stop()
+
+
+class DommeSetupNameView(DommeSetupView):
+    @discord.ui.button(label="Name + Honorific", style=discord.ButtonStyle.primary)
+    async def open_modal(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(DommeNameModal(self.service, self.session))
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_details_step(self.session, interaction)
+
+
+class DommeSetupDetailsView(DommeSetupView):
+    @discord.ui.button(label="Add Details", style=discord.ButtonStyle.primary)
+    async def open_modal(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(DommeDetailsModal(self.service, self.session))
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_payments_step(self.session, interaction)
+
+
+class DommeSetupPaymentsView(DommeSetupView):
+    @discord.ui.button(label="Main Methods", style=discord.ButtonStyle.primary)
+    async def main_methods_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(DommePaymentsModal(self.service, self.session))
+
+    @discord.ui.button(label="More Methods", style=discord.ButtonStyle.secondary)
+    async def more_methods_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(DommePaymentsMoreModal(self.service, self.session))
+
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.advance_after_payments(self.session, interaction)
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.advance_after_payments(self.session, interaction)
+
+
+class DommeSetupThroneView(DommeSetupView):
+    @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
+    async def yes_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.session.throne_tracking_enabled = True
+        await self.service.show_coffee_step(self.session, interaction)
+
+    @discord.ui.button(label="No", style=discord.ButtonStyle.secondary)
+    async def no_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.session.throne_tracking_enabled = False
+        await self.service.show_coffee_step(self.session, interaction)
+
+
+class DommeSetupCoffeeView(DommeSetupView):
+    @discord.ui.button(label="Sign Up", style=discord.ButtonStyle.success)
+    async def sign_up_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.session.coffee_enabled = True
+        await self.service.show_review_step(self.session, interaction)
+
+    @discord.ui.button(label="Not Now", style=discord.ButtonStyle.secondary)
+    async def not_now_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.session.coffee_enabled = False
+        await self.service.show_review_step(self.session, interaction)
+
+
+class DommeSetupReviewView(DommeSetupView):
+    @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
+    async def confirm_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.save_profile(self.session, interaction)
+
+    @discord.ui.button(label="No", style=discord.ButtonStyle.secondary)
+    async def cancel_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.service.finish_session(self.session.user_id)
+        await interaction.response.edit_message(
+            embed=self.service.build_cancelled_embed(),
+            view=None,
+        )
+        self.stop()
+
+
+class DommeDeleteConfirmView(discord.ui.View):
+    def __init__(self, service: DommeProfileService, user_id: int) -> None:
+        super().__init__(timeout=120)
+        self.service = service
+        self.user_id = user_id
+        self.message: discord.Message | None = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("This confirmation is not for you.", ephemeral=True)
+        return False
+
+    @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger)
+    async def delete_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.delete_profile(interaction, self.user_id)
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.edit_message(content="Domme profile deletion cancelled.", view=None)
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        _disable_all(self)
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
+
+class DommeNameModal(discord.ui.Modal, title="Name + Honorific"):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.name_input = discord.ui.TextInput(
+            label="Name",
+            default=session.name or "",
+            required=False,
+            max_length=100,
+        )
+        self.honorific_input = discord.ui.TextInput(
+            label="Honorific (comma separated)",
+            default=session.honorific or "",
+            required=False,
+            max_length=200,
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.honorific_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.name = _clean_optional(self.name_input.value)
+        self.session.honorific = _clean_optional(self.honorific_input.value)
+        await interaction.response.defer()
+        await self.service.show_details_step(self.session, interaction)
+
+
+class DommeDetailsModal(discord.ui.Modal, title="The Nitty Gritty"):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.pronouns_input = discord.ui.TextInput(
+            label="Pronouns",
+            default=session.pronouns or "",
+            required=False,
+            max_length=100,
+        )
+        self.age_input = discord.ui.TextInput(
+            label="Age",
+            default=session.age or "",
+            required=False,
+            max_length=50,
+        )
+        self.tribute_price_input = discord.ui.TextInput(
+            label="Tribute Fee Price",
+            default=session.tribute_price or "",
+            required=False,
+            max_length=100,
+        )
+        self.add_item(self.pronouns_input)
+        self.add_item(self.age_input)
+        self.add_item(self.tribute_price_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.pronouns = _clean_optional(self.pronouns_input.value)
+        self.session.age = _clean_optional(self.age_input.value)
+        self.session.tribute_price = _clean_optional(self.tribute_price_input.value)
+        await interaction.response.defer()
+        await self.service.show_payments_step(self.session, interaction)
+
+
+class DommePaymentsModal(discord.ui.Modal, title="Payment Methods"):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.throne_input = discord.ui.TextInput(
+            label="Throne",
+            default=session.throne or "",
+            required=False,
+            max_length=200,
+        )
+        self.paypal_input = discord.ui.TextInput(
+            label="PayPal",
+            default=session.paypal or "",
+            required=False,
+            max_length=200,
+        )
+        self.youpay_input = discord.ui.TextInput(
+            label="YouPay",
+            default=session.youpay or "",
+            required=False,
+            max_length=200,
+        )
+        self.cashapp_input = discord.ui.TextInput(
+            label="Cashapp",
+            default=session.cashapp or "",
+            required=False,
+            max_length=200,
+        )
+        self.venmo_input = discord.ui.TextInput(
+            label="Venmo",
+            default=session.venmo or "",
+            required=False,
+            max_length=200,
+        )
+        self.add_item(self.throne_input)
+        self.add_item(self.paypal_input)
+        self.add_item(self.youpay_input)
+        self.add_item(self.cashapp_input)
+        self.add_item(self.venmo_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.throne = _clean_optional(self.throne_input.value)
+        self.session.paypal = _clean_optional(self.paypal_input.value)
+        self.session.youpay = _clean_optional(self.youpay_input.value)
+        self.session.cashapp = _clean_optional(self.cashapp_input.value)
+        self.session.venmo = _clean_optional(self.venmo_input.value)
+        await interaction.response.defer()
+        await self.service.refresh_payments_step(self.session, interaction)
+
+
+class DommePaymentsMoreModal(discord.ui.Modal, title="More Payment Methods"):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.beemit_input = discord.ui.TextInput(
+            label="Beemit",
+            default=session.beemit or "",
+            required=False,
+            max_length=200,
+        )
+        self.loyalfans_input = discord.ui.TextInput(
+            label="Loyalfans",
+            default=session.loyalfans or "",
+            required=False,
+            max_length=200,
+        )
+        self.onlyfans_input = discord.ui.TextInput(
+            label="Onlyfans",
+            default=session.onlyfans or "",
+            required=False,
+            max_length=200,
+        )
+        self.add_item(self.beemit_input)
+        self.add_item(self.loyalfans_input)
+        self.add_item(self.onlyfans_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.beemit = _clean_optional(self.beemit_input.value)
+        self.session.loyalfans = _clean_optional(self.loyalfans_input.value)
+        self.session.onlyfans = _clean_optional(self.onlyfans_input.value)
+        await interaction.response.defer()
+        await self.service.refresh_payments_step(self.session, interaction)
