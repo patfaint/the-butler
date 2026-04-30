@@ -203,16 +203,16 @@ DOMME_SETUP_REVIEW_DESCRIPTION = """Please review your profile details below.
 Would you like to save this profile?"""
 
 DOMME_SETUP_COMPLETE_TITLE = "Your domme profile is all setup!"
-DOMME_SETUP_COMPLETE_DESCRIPTION = """Run !domme to show profile.
+DOMME_SETUP_COMPLETE_DESCRIPTION = """Run /domme or !domme to show profile.
 
-Run !domme delete to delete."""
+Run /domme with the delete action, or !domme delete, to delete."""
 
 DOMME_SETUP_LATER_TITLE = "Domme Profile Setup"
 DOMME_SETUP_LATER_DESCRIPTION = """No worries.
 
-Run !domme in the server whenever you're ready to continue."""
+Run /domme or !domme in the server whenever you're ready to continue."""
 
 DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
 DOMME_SETUP_CANCELLED_DESCRIPTION = """No changes were saved.
 
-Run !domme again whenever you're ready."""
+Run /domme or !domme again whenever you're ready."""
