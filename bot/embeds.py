@@ -344,8 +344,8 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             PINK,
             "Domme profile setup and profile management.",
             (
-                ("!domme", "Starts your Domme profile setup or shows your saved profile."),
-                ("!domme delete", "Deletes your saved Domme profile after confirmation."),
+                ("/domme", "Starts your Domme profile setup or shows your saved profile."),
+                ("/domme action:delete", "Deletes your saved Domme profile after confirmation."),
             ),
         ),
     )
