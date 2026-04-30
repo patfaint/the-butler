@@ -1513,7 +1513,7 @@ class VerificationCog(commands.Cog):
                 )
                 return
             view = SubDeleteConfirmView(self.sub_service, interaction.user.id)
-            msg = await interaction.response.send_message(
+            await interaction.response.send_message(
                 "Are you sure you want to delete your sub profile?",
                 view=view,
                 ephemeral=True,

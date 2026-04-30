@@ -216,14 +216,14 @@ class Database:
 
             CREATE TABLE IF NOT EXISTS sub_profiles (
                 user_id INTEGER PRIMARY KEY,
-                throne_name TEXT,
+                throne_name TEXT COLLATE NOCASE,
                 created_at TEXT NOT NULL
             );
 
             CREATE TABLE IF NOT EXISTS throne_sends (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 domme_user_id INTEGER NOT NULL,
-                sub_throne_name TEXT,
+                sub_throne_name TEXT COLLATE NOCASE,
                 claimed_sub_user_id INTEGER,
                 amount_usd REAL NOT NULL,
                 item_name TEXT,
@@ -581,7 +581,7 @@ class Database:
 
     async def get_sub_profile_by_throne_name(self, *, throne_name: str) -> SubProfile | None:
         async with self.connection.execute(
-            "SELECT * FROM sub_profiles WHERE LOWER(throne_name) = LOWER(?)",
+            "SELECT * FROM sub_profiles WHERE throne_name = ? COLLATE NOCASE",
             (throne_name,),
         ) as cursor:
             row = await cursor.fetchone()
@@ -608,7 +608,7 @@ class Database:
                 """
                 UPDATE throne_sends
                 SET claimed_sub_user_id = ?
-                WHERE LOWER(sub_throne_name) = LOWER(?)
+                WHERE sub_throne_name = ? COLLATE NOCASE
                 AND claimed_sub_user_id IS NULL
                 """,
                 (user_id, throne_name),
@@ -691,17 +691,26 @@ class Database:
         """Return SQL-aggregated (sub, domme, total) rows sorted by total DESC.
 
         Aggregation is done in the database to avoid loading the full table.
+        Each sub is identified by a collision-free prefixed key:
+          - claimed users   → 'claimed:<user_id>'
+          - named unclaimed → 'name:<throne_name>'
+          - anonymous       → 'anonymous'
+        MAX() is used for label columns so the result is deterministic.
         """
         async with self.connection.execute(
             """
             SELECT
-                sub_throne_name,
-                claimed_sub_user_id,
+                MAX(sub_throne_name) AS sub_throne_name,
+                MAX(claimed_sub_user_id) AS claimed_sub_user_id,
                 domme_user_id,
                 SUM(amount_usd) AS total_usd
             FROM throne_sends
             GROUP BY
-                COALESCE(CAST(claimed_sub_user_id AS TEXT), sub_throne_name, 'anonymous'),
+                CASE
+                    WHEN claimed_sub_user_id IS NOT NULL THEN 'claimed:' || CAST(claimed_sub_user_id AS TEXT)
+                    WHEN sub_throne_name IS NOT NULL THEN 'name:' || sub_throne_name
+                    ELSE 'anonymous'
+                END,
                 domme_user_id
             ORDER BY total_usd DESC
             LIMIT ?

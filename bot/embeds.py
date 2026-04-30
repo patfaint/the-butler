@@ -682,13 +682,18 @@ def domme_send_leaderboard_embed(
         embed.set_footer(text="The Drain Server • Throne Tracking")
         return embed
 
-    # Group by sub (throne_name or claimed user_id) and sum amounts
+    # Group by sub using a collision-free prefixed key and sum amounts
     from collections import defaultdict
 
     totals: dict[str, float] = defaultdict(float)
     labels: dict[str, str] = {}
     for send in sends:
-        key = str(send.claimed_sub_user_id) if send.claimed_sub_user_id else (send.sub_throne_name or "anonymous")
+        if send.claimed_sub_user_id:
+            key = f"uid:{send.claimed_sub_user_id}"
+        elif send.sub_throne_name:
+            key = f"name:{send.sub_throne_name.lower()}"
+        else:
+            key = "anonymous"
         totals[key] += send.amount_usd
         if key not in labels:
             if send.claimed_sub_user_id:
