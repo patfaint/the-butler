@@ -6,8 +6,8 @@ import discord
 
 from bot import messages
 from bot.config import BotConfig
-from bot.database import DommeProfile, VerificationRequest
-from bot.utils import mention_channel, user_mention
+from bot.database import DommeProfile, LeaderboardRow, SubProfile, ThroneSend, VerificationRequest
+from bot.utils import detect_platform, mention_channel, user_mention
 
 PURPLE = discord.Color.from_rgb(181, 101, 255)
 PINK = discord.Color.from_rgb(255, 101, 178)
@@ -15,6 +15,18 @@ GREEN = discord.Color.from_rgb(59, 201, 122)
 RED = discord.Color.from_rgb(235, 87, 87)
 ORANGE = discord.Color.from_rgb(245, 145, 61)
 SOFT_DARK = discord.Color.from_rgb(42, 37, 58)
+
+# Preset profile colors available to dommes during setup (value, emoji, label)
+PROFILE_COLOR_PRESETS: list[tuple[int, str, str]] = [
+    (PINK.value,                               "💗", "Pink"),
+    (PURPLE.value,                             "💜", "Purple"),
+    (discord.Color.from_rgb(235, 87, 87).value, "🔴", "Red"),
+    (discord.Color.from_rgb(70, 130, 180).value, "🔵", "Blue"),
+    (GREEN.value,                              "💚", "Green"),
+    (discord.Color.from_rgb(255, 215, 0).value, "🟡", "Gold"),
+    (discord.Color.from_rgb(0, 188, 188).value, "🩵", "Teal"),
+    (SOFT_DARK.value,                          "🖤", "Dark"),
+]
 
 
 def _styled_embed(
@@ -64,27 +76,12 @@ def _add_chunked_field(
         embed.add_field(name=heading, value=chunk, inline=False)
 
 
-def _payment_lines(
-    *,
-    throne: str | None,
-    paypal: str | None,
-    youpay: str | None,
-    cashapp: str | None,
-    venmo: str | None,
-    beemit: str | None,
-    loyalfans: str | None,
-    onlyfans: str | None,
-) -> list[str]:
-    return [
-        f"**Throne:** {_profile_value(throne)}",
-        f"**PayPal:** {_profile_value(paypal)}",
-        f"**YouPay:** {_profile_value(youpay)}",
-        f"**Cashapp:** {_profile_value(cashapp)}",
-        f"**Venmo:** {_profile_value(venmo)}",
-        f"**Beemit:** {_profile_value(beemit)}",
-        f"**Loyalfans:** {_profile_value(loyalfans)}",
-        f"**Onlyfans:** {_profile_value(onlyfans)}",
-    ]
+def _smart_link_line(url: str | None) -> str | None:
+    """Return 'Label: URL' if url is set, otherwise None."""
+    if not url or not url.strip():
+        return None
+    label = detect_platform(url.strip())
+    return f"**{label}:** {url.strip()}"
 
 
 def _has_value(value: str | None) -> bool:
@@ -341,16 +338,26 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             "Restricted system controls and reference tools.",
             (
                 ("/help", "Shows the restricted bot help menu."),
+                ("/log_send", "Log a Throne send for a Domme (mod only)."),
             ),
         ),
         (
-            "Profiles",
+            "Domme Profiles",
             PINK,
-            "Domme profile setup and profile management.",
+            "Domme profile setup and management.",
             (
-                ("/domme", "Shows your Domme profile publicly, or starts setup if you don't have one."),
+                ("/domme", "Shows your Domme profile publicly, or starts setup if you don't have one. Works in DMs too."),
                 ("/domme user:@Someone", "Shows another member's Domme profile publicly."),
                 ("/domme action:delete", "Deletes your saved Domme profile after confirmation."),
+            ),
+        ),
+        (
+            "Sub Profiles",
+            SOFT_DARK,
+            "Sub profile setup for Throne leaderboard tracking.",
+            (
+                ("/sub", "Create or edit your sub profile (links your Throne name to your Discord)."),
+                ("/sub action:delete", "Deletes your saved sub profile."),
             ),
         ),
     )
@@ -384,7 +391,7 @@ def domme_setup_name_embed(*, name: str | None, honorific: str | None) -> discor
     )
     embed.add_field(name="Name", value=_profile_value(name), inline=False)
     embed.add_field(name="Honorific", value=_profile_value(honorific), inline=False)
-    embed.set_footer(text="The Butler • Step 1/5")
+    embed.set_footer(text="The Butler • Step 1/4")
     return embed
 
 
@@ -402,20 +409,22 @@ def domme_setup_details_embed(
     embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
     embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
-    embed.set_footer(text="The Butler • Step 2/5")
+    embed.set_footer(text="The Butler • Step 2/4")
     return embed
 
 
-def domme_setup_payments_embed(
+def domme_setup_links_embed(
     *,
     throne: str | None,
-    paypal: str | None,
-    youpay: str | None,
-    cashapp: str | None,
-    venmo: str | None,
-    beemit: str | None,
-    loyalfans: str | None,
-    onlyfans: str | None,
+    tribute_link: str | None,
+    payment_link1: str | None,
+    payment_link2: str | None,
+    payment_link3: str | None,
+    payment_link4: str | None,
+    content_link1: str | None,
+    content_link2: str | None,
+    content_link3: str | None,
+    content_link4: str | None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_PAYMENTS_TITLE,
@@ -423,14 +432,28 @@ def domme_setup_payments_embed(
         color=PURPLE,
     )
     embed.add_field(name="Throne", value=_profile_value(throne), inline=False)
-    embed.add_field(name="PayPal", value=_profile_value(paypal), inline=True)
-    embed.add_field(name="YouPay", value=_profile_value(youpay), inline=True)
-    embed.add_field(name="Cashapp", value=_profile_value(cashapp), inline=True)
-    embed.add_field(name="Venmo", value=_profile_value(venmo), inline=True)
-    embed.add_field(name="Beemit", value=_profile_value(beemit), inline=True)
-    embed.add_field(name="Loyalfans", value=_profile_value(loyalfans), inline=True)
-    embed.add_field(name="Onlyfans", value=_profile_value(onlyfans), inline=True)
-    embed.set_footer(text="The Butler • Step 3/5")
+    embed.add_field(name="Tribute Link", value=_profile_value(tribute_link), inline=False)
+    # Payment links — show smart-detected labels
+    pay_lines = [
+        line for link in (payment_link1, payment_link2, payment_link3, payment_link4)
+        if (line := _smart_link_line(link))
+    ]
+    embed.add_field(
+        name="Payment Links",
+        value="\n".join(pay_lines) if pay_lines else "Not provided",
+        inline=False,
+    )
+    # Content links — smart-detected labels
+    content_lines = [
+        line for link in (content_link1, content_link2, content_link3, content_link4)
+        if (line := _smart_link_line(link))
+    ]
+    embed.add_field(
+        name="Content Links",
+        value="\n".join(content_lines) if content_lines else "Not provided",
+        inline=False,
+    )
+    embed.set_footer(text="The Butler • Step 3/4")
     return embed
 
 
@@ -441,19 +464,24 @@ def domme_setup_throne_embed(*, throne: str | None) -> discord.Embed:
         color=PINK,
     )
     embed.add_field(name="Throne", value=_profile_value(throne), inline=False)
-    embed.set_footer(text="The Butler • Step 4/5")
+    embed.set_footer(text="The Butler • Throne tracking (optional)")
     return embed
 
 
-def domme_setup_coffee_embed(*, coffee_enabled: bool | None = None) -> discord.Embed:
-    embed = _styled_embed(
-        title=messages.DOMME_SETUP_COFFEE_TITLE,
-        description=messages.DOMME_SETUP_COFFEE_DESCRIPTION,
-        color=PINK,
+def domme_setup_color_embed(*, profile_color: int) -> discord.Embed:
+    color = discord.Color(profile_color)
+    # Find the matching preset label if any
+    label = next(
+        (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
+        f"Custom (#{profile_color:06X})",
     )
-    if coffee_enabled is not None:
-        embed.add_field(name="Current Selection", value=_feature_value(coffee_enabled), inline=False)
-    embed.set_footer(text="The Butler • Step 5/5")
+    embed = _styled_embed(
+        title=messages.DOMME_SETUP_COLOR_TITLE,
+        description=messages.DOMME_SETUP_COLOR_DESCRIPTION,
+        color=color,
+    )
+    embed.add_field(name="Selected Color", value=label, inline=False)
+    embed.set_footer(text="The Butler • Step 4/4")
     return embed
 
 
@@ -465,20 +493,22 @@ def domme_setup_review_embed(
     age: str | None,
     tribute_price: str | None,
     throne: str | None,
-    paypal: str | None,
-    youpay: str | None,
-    cashapp: str | None,
-    venmo: str | None,
-    beemit: str | None,
-    loyalfans: str | None,
-    onlyfans: str | None,
+    tribute_link: str | None,
+    payment_link1: str | None,
+    payment_link2: str | None,
+    payment_link3: str | None,
+    payment_link4: str | None,
+    content_link1: str | None,
+    content_link2: str | None,
+    content_link3: str | None,
+    content_link4: str | None,
+    profile_color: int,
     throne_tracking_enabled: bool,
-    coffee_enabled: bool,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_REVIEW_TITLE,
         description=messages.DOMME_SETUP_REVIEW_DESCRIPTION,
-        color=GREEN,
+        color=discord.Color(profile_color),
     )
     embed.add_field(
         name="Identity",
@@ -497,28 +527,35 @@ def domme_setup_review_embed(
         ),
         inline=False,
     )
-    _add_chunked_field(
-        embed,
-        name="Payment Methods",
-        lines=_payment_lines(
-            throne=throne,
-            paypal=paypal,
-            youpay=youpay,
-            cashapp=cashapp,
-            venmo=venmo,
-            beemit=beemit,
-            loyalfans=loyalfans,
-            onlyfans=onlyfans,
-        ),
-    )
+    # Throne + tribute
+    embed.add_field(name="Throne", value=_profile_value(throne), inline=True)
+    embed.add_field(name="Tribute Link", value=_profile_value(tribute_link), inline=True)
+    # Payment links
+    pay_lines = [
+        line for link in (payment_link1, payment_link2, payment_link3, payment_link4)
+        if (line := _smart_link_line(link))
+    ]
     embed.add_field(
-        name="Features",
-        value=(
-            f"**Throne Tracking:** {_feature_value(throne_tracking_enabled)}\n"
-            f"**Coffee Feature:** {_feature_value(coffee_enabled)}"
-        ),
+        name="Payment Links",
+        value="\n".join(pay_lines) if pay_lines else "None",
         inline=False,
     )
+    # Content links
+    content_lines = [
+        line for link in (content_link1, content_link2, content_link3, content_link4)
+        if (line := _smart_link_line(link))
+    ]
+    embed.add_field(
+        name="Content Links",
+        value="\n".join(content_lines) if content_lines else "None",
+        inline=False,
+    )
+    embed.add_field(name="Throne Tracking", value=_feature_value(throne_tracking_enabled), inline=True)
+    color_label = next(
+        (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
+        f"#{profile_color:06X}",
+    )
+    embed.add_field(name="Profile Color", value=color_label, inline=True)
     embed.set_footer(text="The Butler • Ready to save")
     return embed
 
@@ -556,6 +593,8 @@ def domme_setup_cancelled_embed() -> discord.Embed:
 def domme_profile_embed(
     profile: DommeProfile,
     member: discord.Member | discord.User,
+    *,
+    is_verified: bool = False,
 ) -> discord.Embed:
     display_name = member.display_name if isinstance(member, discord.Member) else member.name
 
@@ -567,11 +606,12 @@ def domme_profile_embed(
         identity_parts.append(f"**Name:** {profile.name}")
     if _has_value(profile.pronouns):
         identity_parts.append(f"**Pronouns:** {profile.pronouns}")
+    identity_parts.append("Age Verified ✅" if is_verified else "Age Verified ❌")
 
     embed = discord.Embed(
         title=f"✦ {display_name}",
-        description="\n".join(identity_parts) if identity_parts else None,
-        color=PINK,
+        description="\n".join(identity_parts),
+        color=discord.Color(profile.profile_color),
     )
     embed.set_thumbnail(url=member.display_avatar.url)
 
@@ -584,32 +624,39 @@ def domme_profile_embed(
     if details_parts:
         embed.add_field(name="Details", value="\n".join(details_parts), inline=False)
 
-    # Payment methods — only show entries that have values
-    payment_entries: list[str] = []
-    payment_map = [
-        ("Throne", profile.throne),
-        ("PayPal", profile.paypal),
-        ("YouPay", profile.youpay),
-        ("Cashapp", profile.cashapp),
-        ("Venmo", profile.venmo),
-        ("Beemit", profile.beemit),
-        ("Loyalfans", profile.loyalfans),
-        ("Onlyfans", profile.onlyfans),
-    ]
-    for label, value in payment_map:
-        if _has_value(value):
-            payment_entries.append(f"**{label}:** {value}")
-    if payment_entries:
-        _add_chunked_field(embed, name="Payment Methods", lines=payment_entries)
+    # Throne — shown separately at the top of links
+    if _has_value(profile.throne):
+        embed.add_field(name="Throne", value=profile.throne, inline=False)
 
-    # Features — only show if at least one is enabled
-    feature_parts: list[str] = []
+    # Payment links — smart-labelled
+    pay_lines = [
+        line for url in (
+            profile.payment_link1,
+            profile.payment_link2,
+            profile.payment_link3,
+            profile.payment_link4,
+        )
+        if (line := _smart_link_line(url))
+    ]
+    if pay_lines:
+        _add_chunked_field(embed, name="Payment Links", lines=pay_lines)
+
+    # Content links — smart-labelled
+    content_lines = [
+        line for url in (
+            profile.content_link1,
+            profile.content_link2,
+            profile.content_link3,
+            profile.content_link4,
+        )
+        if (line := _smart_link_line(url))
+    ]
+    if content_lines:
+        _add_chunked_field(embed, name="Content Links", lines=content_lines)
+
+    # Throne tracking badge
     if profile.throne_tracking_enabled:
-        feature_parts.append("✓ Throne tracking enabled")
-    if profile.coffee_enabled:
-        feature_parts.append("✓ Coffee-send alerts enabled")
-    if feature_parts:
-        embed.add_field(name="Features", value="\n".join(feature_parts), inline=False)
+        embed.add_field(name="Features", value="✓ Throne tracking enabled", inline=False)
 
     try:
         created = datetime.fromisoformat(profile.created_at)
@@ -617,4 +664,203 @@ def domme_profile_embed(
     except ValueError:
         created_label = profile.created_at
     embed.set_footer(text=f"The Drain Server • Domme Profile • Created {created_label}")
+    return embed
+
+
+def domme_send_leaderboard_embed(
+    sends: list[ThroneSend],
+    member: discord.Member | discord.User,
+) -> discord.Embed:
+    """Personal leaderboard embed shown to a Domme for sends they've received."""
+    display_name = member.display_name if isinstance(member, discord.Member) else member.name
+    embed = discord.Embed(
+        title=f"💸 {display_name}'s Sends Leaderboard",
+        color=PURPLE,
+    )
+    if not sends:
+        embed.description = "No sends recorded yet."
+        embed.set_footer(text="The Drain Server • Throne Tracking")
+        return embed
+
+    # Group by sub using a collision-free prefixed key and sum amounts
+    from collections import defaultdict
+
+    totals: dict[str, float] = defaultdict(float)
+    labels: dict[str, str] = {}
+    for send in sends:
+        if send.claimed_sub_user_id:
+            key = f"uid:{send.claimed_sub_user_id}"
+        elif send.sub_throne_name:
+            key = f"name:{send.sub_throne_name.lower()}"
+        else:
+            key = "anonymous"
+        totals[key] += send.amount_usd
+        if key not in labels:
+            if send.claimed_sub_user_id:
+                labels[key] = f"<@{send.claimed_sub_user_id}>"
+            elif send.sub_throne_name:
+                labels[key] = f"{send.sub_throne_name} *(Unclaimed)*"
+            else:
+                labels[key] = "*Unclaimed*"
+
+    sorted_entries = sorted(totals.items(), key=lambda x: x[1], reverse=True)
+    lines = [
+        f"**{labels[key]}** — ${total:,.2f}"
+        for key, total in sorted_entries[:20]
+    ]
+    total_all = sum(totals.values())
+    embed.description = "\n".join(lines) if lines else "No sends recorded yet."
+    embed.set_footer(text=f"The Drain Server • Total received: ${total_all:,.2f}")
+    return embed
+
+
+def server_leaderboard_embed(
+    rows: list[LeaderboardRow],
+    bot: discord.Client,
+) -> discord.Embed:
+    """Server-wide leaderboard embed (updated every 5 minutes)."""
+    embed = discord.Embed(
+        title="🏆 Server Sends Leaderboard",
+        color=PURPLE,
+        timestamp=datetime.now(timezone.utc),
+    )
+    if not rows:
+        embed.description = "No sends recorded yet. Be the first!"
+        embed.set_footer(text="The Drain Server • Updates every 5 minutes")
+        return embed
+
+    lines: list[str] = []
+    for row in rows:
+        if row.claimed_sub_user_id:
+            sub_label = f"<@{row.claimed_sub_user_id}>"
+        elif row.sub_throne_name:
+            sub_label = f"{row.sub_throne_name} *(Unclaimed)*"
+        else:
+            sub_label = "*Unclaimed*"
+        domme_label = f"<@{row.domme_user_id}>"
+        lines.append(f"{sub_label} ~ {domme_label}     **${row.total_usd:,.2f}**")
+
+    embed.description = "\n".join(lines)
+    embed.set_footer(text="The Drain Server • Updates every 5 minutes")
+    return embed
+
+
+def throne_send_log_embed(
+    send: ThroneSend,
+    domme: discord.Member | discord.User | None,
+) -> discord.Embed:
+    """Embed posted to the sends channel when a send is logged."""
+    domme_label = domme.mention if domme else f"<@{send.domme_user_id}>"
+    if send.claimed_sub_user_id:
+        sub_label = f"<@{send.claimed_sub_user_id}>"
+        if send.sub_throne_name:
+            sub_label += f" ({send.sub_throne_name})"
+    elif send.sub_throne_name:
+        sub_label = f"{send.sub_throne_name} *(Unclaimed)*"
+    else:
+        sub_label = "*Unclaimed*"
+
+    embed = discord.Embed(
+        title="💸 New Send Received!",
+        color=GREEN,
+        timestamp=datetime.now(timezone.utc),
+    )
+    embed.add_field(name="Domme", value=domme_label, inline=True)
+    embed.add_field(name="From", value=sub_label, inline=True)
+    embed.add_field(name="Amount", value=f"**${send.amount_usd:,.2f}**", inline=True)
+    if send.item_name:
+        embed.add_field(name="Item", value=send.item_name, inline=False)
+    if send.item_image_url:
+        embed.set_image(url=send.item_image_url)
+    embed.set_footer(text=f"The Drain Server • Send #{send.id}")
+    return embed
+
+
+def sub_profile_embed(
+    profile: SubProfile,
+    member: discord.Member | discord.User,
+    *,
+    is_verified: bool = False,
+) -> discord.Embed:
+    display_name = member.display_name if isinstance(member, discord.Member) else member.name
+    verified_badge = "Age Verified ✅" if is_verified else "Age Verified ❌"
+    embed = discord.Embed(
+        title=f"✦ {display_name}",
+        description=verified_badge,
+        color=SOFT_DARK,
+    )
+    embed.set_thumbnail(url=member.display_avatar.url)
+    embed.add_field(
+        name="Throne Name",
+        value=profile.throne_name if profile.throne_name else "Not set",
+        inline=False,
+    )
+    try:
+        created = datetime.fromisoformat(profile.created_at)
+        created_label = created.strftime("%m/%d/%Y")
+    except ValueError:
+        created_label = profile.created_at
+    embed.set_footer(text=f"The Drain Server • Sub Profile • Created {created_label}")
+    return embed
+
+
+def sub_setup_intro_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_INTRO_TITLE,
+        description=messages.SUB_SETUP_INTRO_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.set_footer(text="The Butler • Sub profile setup")
+    return embed
+
+
+def sub_setup_name_embed(*, throne_name: str | None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_NAME_TITLE,
+        description=messages.SUB_SETUP_NAME_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Your Throne Name", value=_profile_value(throne_name), inline=False)
+    embed.set_footer(text="The Butler • Step 1/1")
+    return embed
+
+
+def sub_setup_review_embed(*, throne_name: str | None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_REVIEW_TITLE,
+        description=messages.SUB_SETUP_REVIEW_DESCRIPTION,
+        color=GREEN,
+    )
+    embed.add_field(name="Throne Name", value=_profile_value(throne_name), inline=False)
+    embed.set_footer(text="The Butler • Ready to save")
+    return embed
+
+
+def sub_setup_complete_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_COMPLETE_TITLE,
+        description=messages.SUB_SETUP_COMPLETE_DESCRIPTION,
+        color=GREEN,
+    )
+    embed.set_footer(text="The Butler • Profile saved")
+    return embed
+
+
+def sub_setup_later_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_LATER_TITLE,
+        description=messages.SUB_SETUP_LATER_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.set_footer(text="The Butler • Setup paused")
+    return embed
+
+
+def sub_setup_cancelled_embed() -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_CANCELLED_TITLE,
+        description=messages.SUB_SETUP_CANCELLED_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.set_footer(text="The Butler • Setup cancelled")
     return embed

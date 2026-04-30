@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING
 import discord
 
 from bot import messages
-from bot.embeds import help_page_embed
+from bot.embeds import PROFILE_COLOR_PRESETS, help_page_embed
 
 if TYPE_CHECKING:
-    from bot.verification import DommeProfileSession, DommeProfileService, VerificationService
+    from bot.verification import DommeProfileSession, DommeProfileService, SubProfileService, SubProfileSession, VerificationService
 
 
 def _clean_optional(value: str) -> str | None:
@@ -324,21 +324,29 @@ class DommeSetupDetailsView(DommeSetupView):
 
 
 class DommeSetupPaymentsView(DommeSetupView):
-    @discord.ui.button(label="Main Methods", style=discord.ButtonStyle.primary)
-    async def main_methods_button(
+    @discord.ui.button(label="Throne & Tribute", style=discord.ButtonStyle.primary)
+    async def throne_tribute_button(
         self,
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await interaction.response.send_modal(DommePaymentsModal(self.service, self.session))
+        await interaction.response.send_modal(DommeThroneLinksModal(self.service, self.session))
 
-    @discord.ui.button(label="More Methods", style=discord.ButtonStyle.secondary)
-    async def more_methods_button(
+    @discord.ui.button(label="Payment Links", style=discord.ButtonStyle.primary)
+    async def payment_links_button(
         self,
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await interaction.response.send_modal(DommePaymentsMoreModal(self.service, self.session))
+        await interaction.response.send_modal(DommePaymentLinksModal(self.service, self.session))
+
+    @discord.ui.button(label="Content Links", style=discord.ButtonStyle.primary)
+    async def content_links_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(DommeContentLinksModal(self.service, self.session))
 
     @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
     async def continue_button(
@@ -358,34 +366,14 @@ class DommeSetupPaymentsView(DommeSetupView):
 
 
 class DommeSetupThroneView(DommeSetupView):
-    @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
-    async def yes_button(
-        self,
-        interaction: discord.Interaction,
-        _: discord.ui.Button,
-    ) -> None:
-        self.session.throne_tracking_enabled = True
-        await self.service.show_coffee_step(self.session, interaction)
-
-    @discord.ui.button(label="No", style=discord.ButtonStyle.secondary)
-    async def no_button(
-        self,
-        interaction: discord.Interaction,
-        _: discord.ui.Button,
-    ) -> None:
-        self.session.throne_tracking_enabled = False
-        await self.service.show_coffee_step(self.session, interaction)
-
-
-class DommeSetupCoffeeView(DommeSetupView):
     @discord.ui.button(label="Sign Up", style=discord.ButtonStyle.success)
     async def sign_up_button(
         self,
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        self.session.coffee_enabled = True
-        await self.service.show_review_step(self.session, interaction)
+        self.session.throne_tracking_enabled = True
+        await self.service.show_color_step(self.session, interaction)
 
     @discord.ui.button(label="Not Now", style=discord.ButtonStyle.secondary)
     async def not_now_button(
@@ -393,7 +381,32 @@ class DommeSetupCoffeeView(DommeSetupView):
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        self.session.coffee_enabled = False
+        self.session.throne_tracking_enabled = False
+        await self.service.show_color_step(self.session, interaction)
+
+
+class DommeSetupColorView(DommeSetupView):
+    @discord.ui.select(
+        placeholder="Choose a profile colour…",
+        options=[
+            discord.SelectOption(label=label, value=str(value), emoji=emoji)
+            for value, emoji, label in PROFILE_COLOR_PRESETS
+        ],
+    )
+    async def color_select(
+        self,
+        interaction: discord.Interaction,
+        select: discord.ui.Select,
+    ) -> None:
+        self.session.profile_color = int(select.values[0])
+        await self.service.show_color_step(self.session, interaction)
+
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
         await self.service.show_review_step(self.session, interaction)
 
 
@@ -524,89 +537,273 @@ class DommeDetailsModal(discord.ui.Modal, title="The Nitty Gritty"):
         await self.service.show_payments_step(self.session, interaction)
 
 
-class DommePaymentsModal(discord.ui.Modal, title="Payment Methods"):
+class DommeThroneLinksModal(discord.ui.Modal, title="Throne & Tribute"):
     def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
         super().__init__(timeout=900)
         self.service = service
         self.session = session
 
         self.throne_input = discord.ui.TextInput(
-            label="Throne",
+            label="Throne URL",
             default=session.throne or "",
             required=False,
             max_length=200,
+            placeholder="https://throne.com/yourname",
         )
-        self.paypal_input = discord.ui.TextInput(
-            label="PayPal",
-            default=session.paypal or "",
+        self.tribute_input = discord.ui.TextInput(
+            label="Preferred Tribute Link",
+            default=session.tribute_link or "",
             required=False,
             max_length=200,
-        )
-        self.youpay_input = discord.ui.TextInput(
-            label="YouPay",
-            default=session.youpay or "",
-            required=False,
-            max_length=200,
-        )
-        self.cashapp_input = discord.ui.TextInput(
-            label="Cashapp",
-            default=session.cashapp or "",
-            required=False,
-            max_length=200,
-        )
-        self.venmo_input = discord.ui.TextInput(
-            label="Venmo",
-            default=session.venmo or "",
-            required=False,
-            max_length=200,
+            placeholder="Your main tribute link — shown as a button on your profile",
         )
         self.add_item(self.throne_input)
-        self.add_item(self.paypal_input)
-        self.add_item(self.youpay_input)
-        self.add_item(self.cashapp_input)
-        self.add_item(self.venmo_input)
+        self.add_item(self.tribute_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         self.session.throne = _clean_optional(self.throne_input.value)
-        self.session.paypal = _clean_optional(self.paypal_input.value)
-        self.session.youpay = _clean_optional(self.youpay_input.value)
-        self.session.cashapp = _clean_optional(self.cashapp_input.value)
-        self.session.venmo = _clean_optional(self.venmo_input.value)
+        self.session.tribute_link = _clean_optional(self.tribute_input.value)
         await interaction.response.defer()
         await self.service.refresh_payments_step(self.session, interaction)
 
 
-class DommePaymentsMoreModal(discord.ui.Modal, title="More Payment Methods"):
+class DommePaymentLinksModal(discord.ui.Modal, title="Payment Links"):
     def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
         super().__init__(timeout=900)
         self.service = service
         self.session = session
 
-        self.beemit_input = discord.ui.TextInput(
-            label="Beemit",
-            default=session.beemit or "",
+        self.link1_input = discord.ui.TextInput(
+            label="Payment Link 1 (e.g. PayPal, CashApp…)",
+            default=session.payment_link1 or "",
             required=False,
             max_length=200,
         )
-        self.loyalfans_input = discord.ui.TextInput(
-            label="Loyalfans",
-            default=session.loyalfans or "",
+        self.link2_input = discord.ui.TextInput(
+            label="Payment Link 2",
+            default=session.payment_link2 or "",
             required=False,
             max_length=200,
         )
-        self.onlyfans_input = discord.ui.TextInput(
-            label="Onlyfans",
-            default=session.onlyfans or "",
+        self.link3_input = discord.ui.TextInput(
+            label="Payment Link 3",
+            default=session.payment_link3 or "",
             required=False,
             max_length=200,
         )
-        self.add_item(self.beemit_input)
-        self.add_item(self.loyalfans_input)
-        self.add_item(self.onlyfans_input)
+        self.link4_input = discord.ui.TextInput(
+            label="Payment Link 4",
+            default=session.payment_link4 or "",
+            required=False,
+            max_length=200,
+        )
+        self.add_item(self.link1_input)
+        self.add_item(self.link2_input)
+        self.add_item(self.link3_input)
+        self.add_item(self.link4_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
-        self.session.beemit = _clean_optional(self.beemit_input.value)
-        self.session.loyalfans = _clean_optional(self.loyalfans_input.value)
-        self.session.onlyfans = _clean_optional(self.onlyfans_input.value)
+        self.session.payment_link1 = _clean_optional(self.link1_input.value)
+        self.session.payment_link2 = _clean_optional(self.link2_input.value)
+        self.session.payment_link3 = _clean_optional(self.link3_input.value)
+        self.session.payment_link4 = _clean_optional(self.link4_input.value)
         await interaction.response.defer()
         await self.service.refresh_payments_step(self.session, interaction)
+
+
+class DommeContentLinksModal(discord.ui.Modal, title="Content Links"):
+    def __init__(self, service: DommeProfileService, session: DommeProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.link1_input = discord.ui.TextInput(
+            label="Content Link 1 (e.g. OnlyFans, Fansly…)",
+            default=session.content_link1 or "",
+            required=False,
+            max_length=200,
+        )
+        self.link2_input = discord.ui.TextInput(
+            label="Content Link 2",
+            default=session.content_link2 or "",
+            required=False,
+            max_length=200,
+        )
+        self.link3_input = discord.ui.TextInput(
+            label="Content Link 3",
+            default=session.content_link3 or "",
+            required=False,
+            max_length=200,
+        )
+        self.link4_input = discord.ui.TextInput(
+            label="Content Link 4",
+            default=session.content_link4 or "",
+            required=False,
+            max_length=200,
+        )
+        self.add_item(self.link1_input)
+        self.add_item(self.link2_input)
+        self.add_item(self.link3_input)
+        self.add_item(self.link4_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.content_link1 = _clean_optional(self.link1_input.value)
+        self.session.content_link2 = _clean_optional(self.link2_input.value)
+        self.session.content_link3 = _clean_optional(self.link3_input.value)
+        self.session.content_link4 = _clean_optional(self.link4_input.value)
+        await interaction.response.defer()
+        await self.service.refresh_payments_step(self.session, interaction)
+
+
+# ---------------------------------------------------------------------------
+# Sub profile setup views and modals
+# ---------------------------------------------------------------------------
+
+class SubSetupView(discord.ui.View):
+    def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.session.user_id:
+            return True
+        await interaction.response.send_message("This setup is not for you.", ephemeral=True)
+        return False
+
+    async def on_timeout(self) -> None:
+        if self.session.current_view is not self:
+            return
+        _disable_all(self)
+        if self.session.message:
+            try:
+                await self.session.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+        self.session.current_view = None
+        self.service.finish_session(self.session.user_id)
+
+
+class SubSetupIntroView(SubSetupView):
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.primary)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_name_step(self.session, interaction)
+
+    @discord.ui.button(label="Later", style=discord.ButtonStyle.secondary)
+    async def later_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.service.finish_session(self.session.user_id)
+        await interaction.response.edit_message(
+            embed=self.service.build_later_embed(),
+            view=None,
+        )
+        self.stop()
+
+
+class SubSetupNameView(SubSetupView):
+    @discord.ui.button(label="Set Throne Name", style=discord.ButtonStyle.primary)
+    async def set_name_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(SubThroneNameModal(self.service, self.session))
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_review_step(self.session, interaction)
+
+
+class SubSetupReviewView(SubSetupView):
+    @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
+    async def confirm_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.save_profile(self.session, interaction)
+
+    @discord.ui.button(label="No", style=discord.ButtonStyle.secondary)
+    async def cancel_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.service.finish_session(self.session.user_id)
+        await interaction.response.edit_message(
+            embed=self.service.build_cancelled_embed(),
+            view=None,
+        )
+        self.stop()
+
+
+class SubDeleteConfirmView(discord.ui.View):
+    def __init__(self, service: SubProfileService, user_id: int) -> None:
+        super().__init__(timeout=120)
+        self.service = service
+        self.user_id = user_id
+        self.message: discord.Message | None = None
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.user_id:
+            return True
+        await interaction.response.send_message("This confirmation is not for you.", ephemeral=True)
+        return False
+
+    @discord.ui.button(label="Delete", style=discord.ButtonStyle.danger)
+    async def delete_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.delete_profile(interaction, self.user_id)
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.edit_message(content="Sub profile deletion cancelled.", view=None)
+        self.stop()
+
+    async def on_timeout(self) -> None:
+        _disable_all(self)
+        if self.message:
+            try:
+                await self.message.edit(view=self)
+            except discord.HTTPException:
+                pass
+
+
+class SubThroneNameModal(discord.ui.Modal, title="Throne Name"):
+    def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.throne_name_input = discord.ui.TextInput(
+            label="Your Throne sending name",
+            default=session.throne_name or "",
+            required=False,
+            max_length=100,
+            placeholder="The name shown when you send on Throne",
+        )
+        self.add_item(self.throne_name_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.throne_name = _clean_optional(self.throne_name_input.value)
+        await interaction.response.defer()
+        await self.service.show_review_step(self.session, interaction)

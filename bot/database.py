@@ -52,15 +52,17 @@ class DommeProfile:
     age: str | None
     tribute_price: str | None
     throne: str | None
-    paypal: str | None
-    youpay: str | None
-    cashapp: str | None
-    venmo: str | None
-    beemit: str | None
-    loyalfans: str | None
-    onlyfans: str | None
+    tribute_link: str | None
+    payment_link1: str | None
+    payment_link2: str | None
+    payment_link3: str | None
+    payment_link4: str | None
+    content_link1: str | None
+    content_link2: str | None
+    content_link3: str | None
+    content_link4: str | None
+    profile_color: int
     throne_tracking_enabled: bool
-    coffee_enabled: bool
     created_at: str
 
     @classmethod
@@ -73,17 +75,70 @@ class DommeProfile:
             age=row["age"],
             tribute_price=row["tribute_price"],
             throne=row["throne"],
-            paypal=row["paypal"],
-            youpay=row["youpay"],
-            cashapp=row["cashapp"],
-            venmo=row["venmo"],
-            beemit=row["beemit"],
-            loyalfans=row["loyalfans"],
-            onlyfans=row["onlyfans"],
+            tribute_link=row["tribute_link"],
+            payment_link1=row["payment_link1"],
+            payment_link2=row["payment_link2"],
+            payment_link3=row["payment_link3"],
+            payment_link4=row["payment_link4"],
+            content_link1=row["content_link1"],
+            content_link2=row["content_link2"],
+            content_link3=row["content_link3"],
+            content_link4=row["content_link4"],
+            profile_color=row["profile_color"] or 16737714,
             throne_tracking_enabled=bool(row["throne_tracking_enabled"]),
-            coffee_enabled=bool(row["coffee_enabled"]),
             created_at=row["created_at"],
         )
+
+
+@dataclass(frozen=True)
+class SubProfile:
+    user_id: int
+    throne_name: str | None
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row: aiosqlite.Row) -> "SubProfile":
+        return cls(
+            user_id=row["user_id"],
+            throne_name=row["throne_name"],
+            created_at=row["created_at"],
+        )
+
+
+@dataclass(frozen=True)
+class ThroneSend:
+    id: int
+    domme_user_id: int
+    sub_throne_name: str | None
+    claimed_sub_user_id: int | None
+    amount_usd: float
+    item_name: str | None
+    item_image_url: str | None
+    logged_by: int
+    sent_at: str
+
+    @classmethod
+    def from_row(cls, row: aiosqlite.Row) -> "ThroneSend":
+        return cls(
+            id=row["id"],
+            domme_user_id=row["domme_user_id"],
+            sub_throne_name=row["sub_throne_name"],
+            claimed_sub_user_id=row["claimed_sub_user_id"],
+            amount_usd=row["amount_usd"],
+            item_name=row["item_name"],
+            item_image_url=row["item_image_url"],
+            logged_by=row["logged_by"],
+            sent_at=row["sent_at"],
+        )
+
+
+@dataclass(frozen=True)
+class LeaderboardRow:
+    """Pre-aggregated row used by the server leaderboard embed."""
+    sub_throne_name: str | None
+    claimed_sub_user_id: int | None
+    domme_user_id: int
+    total_usd: float
 
 
 class Database:
@@ -145,16 +200,48 @@ class Database:
                 age TEXT,
                 tribute_price TEXT,
                 throne TEXT,
-                paypal TEXT,
-                youpay TEXT,
-                cashapp TEXT,
-                venmo TEXT,
-                beemit TEXT,
-                loyalfans TEXT,
-                onlyfans TEXT,
+                tribute_link TEXT,
+                payment_link1 TEXT,
+                payment_link2 TEXT,
+                payment_link3 TEXT,
+                payment_link4 TEXT,
+                content_link1 TEXT,
+                content_link2 TEXT,
+                content_link3 TEXT,
+                content_link4 TEXT,
+                profile_color INTEGER NOT NULL DEFAULT 16737714,
                 throne_tracking_enabled INTEGER NOT NULL DEFAULT 0,
-                coffee_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS sub_profiles (
+                user_id INTEGER PRIMARY KEY,
+                throne_name TEXT COLLATE NOCASE,
+                created_at TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS throne_sends (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                domme_user_id INTEGER NOT NULL,
+                sub_throne_name TEXT COLLATE NOCASE,
+                claimed_sub_user_id INTEGER,
+                amount_usd REAL NOT NULL,
+                item_name TEXT,
+                item_image_url TEXT,
+                logged_by INTEGER NOT NULL,
+                sent_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_throne_sends_domme
+            ON throne_sends(domme_user_id);
+
+            CREATE INDEX IF NOT EXISTS idx_throne_sends_sub
+            ON throne_sends(sub_throne_name);
+
+            CREATE TABLE IF NOT EXISTS leaderboard_messages (
+                guild_id INTEGER PRIMARY KEY,
+                message_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL
             );
 
             UPDATE verification_requests
@@ -163,6 +250,8 @@ class Database:
             """
         )
         await self.connection.commit()
+        await self._migrate_domme_profiles()
+        await self._claim_sends_with_matching_sub_profiles()
 
     async def close(self) -> None:
         if self._connection is not None:
@@ -331,6 +420,45 @@ class Database:
         await self.connection.commit()
         return updated
 
+    async def _migrate_domme_profiles(self) -> None:
+        """Add new columns to domme_profiles if they don't exist yet (schema migration)."""
+        async with self.connection.execute("PRAGMA table_info(domme_profiles)") as cursor:
+            columns = {row["name"] for row in await cursor.fetchall()}
+        new_columns: dict[str, str] = {
+            "tribute_link": "TEXT",
+            "payment_link1": "TEXT",
+            "payment_link2": "TEXT",
+            "payment_link3": "TEXT",
+            "payment_link4": "TEXT",
+            "content_link1": "TEXT",
+            "content_link2": "TEXT",
+            "content_link3": "TEXT",
+            "content_link4": "TEXT",
+            "profile_color": "INTEGER NOT NULL DEFAULT 16737714",
+        }
+        for col, col_type in new_columns.items():
+            if col not in columns:
+                await self.connection.execute(
+                    f"ALTER TABLE domme_profiles ADD COLUMN {col} {col_type}"
+                )
+        await self.connection.commit()
+
+    async def _claim_sends_with_matching_sub_profiles(self) -> None:
+        """Auto-link unclaimed sends to sub profiles where throne_name matches."""
+        await self.connection.execute(
+            """
+            UPDATE throne_sends
+            SET claimed_sub_user_id = (
+                SELECT user_id FROM sub_profiles
+                WHERE LOWER(sub_profiles.throne_name) = LOWER(throne_sends.sub_throne_name)
+                LIMIT 1
+            )
+            WHERE claimed_sub_user_id IS NULL
+            AND sub_throne_name IS NOT NULL
+            """
+        )
+        await self.connection.commit()
+
     async def get_domme_profile(self, *, user_id: int) -> DommeProfile | None:
         async with self.connection.execute(
             "SELECT * FROM domme_profiles WHERE user_id = ?",
@@ -351,15 +479,17 @@ class Database:
         age: str | None,
         tribute_price: str | None,
         throne: str | None,
-        paypal: str | None,
-        youpay: str | None,
-        cashapp: str | None,
-        venmo: str | None,
-        beemit: str | None,
-        loyalfans: str | None,
-        onlyfans: str | None,
+        tribute_link: str | None,
+        payment_link1: str | None,
+        payment_link2: str | None,
+        payment_link3: str | None,
+        payment_link4: str | None,
+        content_link1: str | None,
+        content_link2: str | None,
+        content_link3: str | None,
+        content_link4: str | None,
+        profile_color: int,
         throne_tracking_enabled: bool,
-        coffee_enabled: bool,
     ) -> None:
         async with self.connection.execute(
             """
@@ -371,18 +501,20 @@ class Database:
                 age,
                 tribute_price,
                 throne,
-                paypal,
-                youpay,
-                cashapp,
-                venmo,
-                beemit,
-                loyalfans,
-                onlyfans,
+                tribute_link,
+                payment_link1,
+                payment_link2,
+                payment_link3,
+                payment_link4,
+                content_link1,
+                content_link2,
+                content_link3,
+                content_link4,
+                profile_color,
                 throne_tracking_enabled,
-                coffee_enabled,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 name = excluded.name,
                 honorific = excluded.honorific,
@@ -390,15 +522,17 @@ class Database:
                 age = excluded.age,
                 tribute_price = excluded.tribute_price,
                 throne = excluded.throne,
-                paypal = excluded.paypal,
-                youpay = excluded.youpay,
-                cashapp = excluded.cashapp,
-                venmo = excluded.venmo,
-                beemit = excluded.beemit,
-                loyalfans = excluded.loyalfans,
-                onlyfans = excluded.onlyfans,
+                tribute_link = excluded.tribute_link,
+                payment_link1 = excluded.payment_link1,
+                payment_link2 = excluded.payment_link2,
+                payment_link3 = excluded.payment_link3,
+                payment_link4 = excluded.payment_link4,
+                content_link1 = excluded.content_link1,
+                content_link2 = excluded.content_link2,
+                content_link3 = excluded.content_link3,
+                content_link4 = excluded.content_link4,
+                profile_color = excluded.profile_color,
                 throne_tracking_enabled = excluded.throne_tracking_enabled,
-                coffee_enabled = excluded.coffee_enabled,
                 created_at = domme_profiles.created_at
             """,
             (
@@ -409,15 +543,17 @@ class Database:
                 age,
                 tribute_price,
                 throne,
-                paypal,
-                youpay,
-                cashapp,
-                venmo,
-                beemit,
-                loyalfans,
-                onlyfans,
+                tribute_link,
+                payment_link1,
+                payment_link2,
+                payment_link3,
+                payment_link4,
+                content_link1,
+                content_link2,
+                content_link3,
+                content_link4,
+                profile_color,
                 int(throne_tracking_enabled),
-                int(coffee_enabled),
                 _utc_now(),
             ),
         ):
@@ -432,6 +568,196 @@ class Database:
             deleted = cursor.rowcount > 0
         await self.connection.commit()
         return deleted
+
+    async def get_sub_profile(self, *, user_id: int) -> SubProfile | None:
+        async with self.connection.execute(
+            "SELECT * FROM sub_profiles WHERE user_id = ?",
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return SubProfile.from_row(row)
+
+    async def get_sub_profile_by_throne_name(self, *, throne_name: str) -> SubProfile | None:
+        async with self.connection.execute(
+            "SELECT * FROM sub_profiles WHERE throne_name = ? COLLATE NOCASE",
+            (throne_name,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return SubProfile.from_row(row)
+
+    async def save_sub_profile(self, *, user_id: int, throne_name: str | None) -> None:
+        async with self.connection.execute(
+            """
+            INSERT INTO sub_profiles (user_id, throne_name, created_at)
+            VALUES (?, ?, ?)
+            ON CONFLICT(user_id) DO UPDATE SET
+                throne_name = excluded.throne_name,
+                created_at = sub_profiles.created_at
+            """,
+            (user_id, throne_name, _utc_now()),
+        ):
+            pass
+        await self.connection.commit()
+        # Auto-claim any matching unclaimed sends
+        if throne_name:
+            await self.connection.execute(
+                """
+                UPDATE throne_sends
+                SET claimed_sub_user_id = ?
+                WHERE sub_throne_name = ? COLLATE NOCASE
+                AND claimed_sub_user_id IS NULL
+                """,
+                (user_id, throne_name),
+            )
+            await self.connection.commit()
+
+    async def delete_sub_profile(self, *, user_id: int) -> bool:
+        async with self.connection.execute(
+            "DELETE FROM sub_profiles WHERE user_id = ?",
+            (user_id,),
+        ) as cursor:
+            deleted = cursor.rowcount > 0
+        await self.connection.commit()
+        return deleted
+
+    async def log_throne_send(
+        self,
+        *,
+        domme_user_id: int,
+        sub_throne_name: str | None,
+        amount_usd: float,
+        item_name: str | None,
+        item_image_url: str | None,
+        logged_by: int,
+    ) -> int:
+        claimed_sub_user_id: int | None = None
+        if sub_throne_name:
+            sub = await self.get_sub_profile_by_throne_name(throne_name=sub_throne_name)
+            if sub:
+                claimed_sub_user_id = sub.user_id
+        async with self.connection.execute(
+            """
+            INSERT INTO throne_sends (
+                domme_user_id,
+                sub_throne_name,
+                claimed_sub_user_id,
+                amount_usd,
+                item_name,
+                item_image_url,
+                logged_by,
+                sent_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                domme_user_id,
+                sub_throne_name,
+                claimed_sub_user_id,
+                amount_usd,
+                item_name,
+                item_image_url,
+                logged_by,
+                _utc_now(),
+            ),
+        ) as cursor:
+            send_id = int(cursor.lastrowid)
+        await self.connection.commit()
+        return send_id
+
+    async def get_sends_for_domme(self, *, domme_user_id: int) -> list[ThroneSend]:
+        async with self.connection.execute(
+            """
+            SELECT * FROM throne_sends
+            WHERE domme_user_id = ?
+            ORDER BY sent_at DESC
+            """,
+            (domme_user_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [ThroneSend.from_row(row) for row in rows]
+
+    async def get_all_sends(self) -> list[ThroneSend]:
+        async with self.connection.execute(
+            "SELECT * FROM throne_sends ORDER BY sent_at DESC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [ThroneSend.from_row(row) for row in rows]
+
+    async def get_leaderboard_top_sends(self, limit: int = 25) -> list[LeaderboardRow]:
+        """Return SQL-aggregated (sub, domme, total) rows sorted by total DESC.
+
+        Aggregation is done in the database to avoid loading the full table.
+        Each sub is identified by a collision-free prefixed key:
+          - claimed users   → 'claimed:<user_id>'
+          - named unclaimed → 'name:<throne_name>'
+          - anonymous       → 'anonymous'
+        MAX() is used for label columns so the result is deterministic.
+        """
+        async with self.connection.execute(
+            """
+            SELECT
+                MAX(sub_throne_name) AS sub_throne_name,
+                MAX(claimed_sub_user_id) AS claimed_sub_user_id,
+                domme_user_id,
+                SUM(amount_usd) AS total_usd
+            FROM throne_sends
+            GROUP BY
+                CASE
+                    WHEN claimed_sub_user_id IS NOT NULL THEN 'claimed:' || CAST(claimed_sub_user_id AS TEXT)
+                    WHEN sub_throne_name IS NOT NULL THEN 'name:' || sub_throne_name
+                    ELSE 'anonymous'
+                END,
+                domme_user_id
+            ORDER BY total_usd DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [
+            LeaderboardRow(
+                sub_throne_name=row["sub_throne_name"],
+                claimed_sub_user_id=int(row["claimed_sub_user_id"]) if row["claimed_sub_user_id"] is not None else None,
+                domme_user_id=int(row["domme_user_id"]),
+                total_usd=float(row["total_usd"]),
+            )
+            for row in rows
+        ]
+
+    async def get_leaderboard_message(self, *, guild_id: int) -> tuple[int, int] | None:
+        """Return (message_id, channel_id) or None."""
+        async with self.connection.execute(
+            "SELECT message_id, channel_id FROM leaderboard_messages WHERE guild_id = ?",
+            (guild_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return int(row["message_id"]), int(row["channel_id"])
+
+    async def upsert_leaderboard_message(
+        self,
+        *,
+        guild_id: int,
+        message_id: int,
+        channel_id: int,
+    ) -> None:
+        async with self.connection.execute(
+            """
+            INSERT INTO leaderboard_messages (guild_id, message_id, channel_id)
+            VALUES (?, ?, ?)
+            ON CONFLICT(guild_id) DO UPDATE SET
+                message_id = excluded.message_id,
+                channel_id = excluded.channel_id
+            """,
+            (guild_id, message_id, channel_id),
+        ):
+            pass
+        await self.connection.commit()
 
     async def _fetch_one(
         self,

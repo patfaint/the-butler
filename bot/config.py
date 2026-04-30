@@ -22,6 +22,8 @@ class BotConfig:
     domme_role_id: int
     submissive_role_id: int
     moderation_role_id: int
+    sends_channel_id: int | None
+    leaderboard_channel_id: int | None
     database_path: Path
 
 
@@ -46,6 +48,8 @@ def load_config() -> BotConfig:
         domme_role_id=_required_int("DOMME_ROLE_ID"),
         submissive_role_id=_required_int("SUBMISSIVE_ROLE_ID"),
         moderation_role_id=_required_int("MODERATION_ROLE_ID"),
+        sends_channel_id=_optional_int("SENDS_CHANNEL_ID"),
+        leaderboard_channel_id=_optional_int("LEADERBOARD_CHANNEL_ID"),
         database_path=Path(os.getenv("DATABASE_PATH", "data/the_butler.sqlite3")),
     )
 
