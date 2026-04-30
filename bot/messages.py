@@ -167,52 +167,51 @@ GENERAL_SUBMISSIVE_MESSAGES = (
     "{user_mention} just joined and is ready to serve.",
 )
 
-DOMME_SETUP_INTRO_TITLE = "Welcome to The Butler Domme Profile Setup Tool Thingy (name is work in progress)"
-DOMME_SETUP_INTRO_DESCRIPTION = """This setup will help guide you through setting up a domme profile on the bot.
+DOMME_SETUP_INTRO_TITLE = "Domme Profile Setup"
+DOMME_SETUP_INTRO_DESCRIPTION = """This quick setup lets you create or update your Domme profile on The Drain Server.
 
-This will help for features like Throne tracking (if possible), tribute tracking and coffee send alerts to subs. As well as a bunch of other features in future.
+Your profile can be shown with **/domme** (or **!domme**) and is used for things like:
+• Payment links and tribute info
+• Throne tracking and coffee-send alerts for subs
+• Introducing yourself to the server
 
-This will also help build a profile that you can use to give others a quick intro about yourself in the server.
+**Everything is optional.** Skip anything you'd rather leave out and come back anytime.
 
-Note this will be upgraded later on with feedback so if you think this is either shit or could be way better throw your suggestions and/or insults at the Semi useful sub and he’ll fix them.
+Press **Continue** when you're ready, or **Later** if you'd like to come back another time."""
 
-If you’re ready to proceed, click continue below. Or otherwise if you want to do this later, click Later below.
+DOMME_SETUP_NAME_TITLE = "Step 1: Name & honorific"
+DOMME_SETUP_NAME_DESCRIPTION = """How would you like subs to address you? Add your name and any honorifics here."""
 
-NOTE: All questions are optional. If you do not want to answer something, click Skip."""
-
-DOMME_SETUP_NAME_TITLE = "Step 1: Your name and honorific"
-DOMME_SETUP_NAME_DESCRIPTION = """To make sure subs address you correctly, we need your name and honorifics."""
-
-DOMME_SETUP_DETAILS_TITLE = "Step 2: The nitty gritty"
-DOMME_SETUP_DETAILS_DESCRIPTION = """Fill out any of the below details you want included on your profile."""
+DOMME_SETUP_DETAILS_TITLE = "Step 2: Details"
+DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details you'd like displayed on your profile."""
 
 DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Payment methods"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add any payment links or handles you want The Butler to keep on your profile."""
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add any payment links or handles you want saved to your profile."""
 
 DOMME_SETUP_THRONE_TITLE = "Step 4: Throne tracking"
-DOMME_SETUP_THRONE_DESCRIPTION = """You added a Throne link.
+DOMME_SETUP_THRONE_DESCRIPTION = """It looks like you added a Throne link.
 
-Would you like to turn on Throne tracking for your profile?"""
+Would you like to enable Throne tracking for your profile? You can change this at any time."""
 
-DOMME_SETUP_COFFEE_TITLE = "Step 5: Coffee feature"
-DOMME_SETUP_COFFEE_DESCRIPTION = """Would you like to sign up for coffee send alerts to subs?"""
+DOMME_SETUP_COFFEE_TITLE = "Step 5: Coffee alerts"
+DOMME_SETUP_COFFEE_DESCRIPTION = """Would you like to enable coffee-send alerts for subs? (Optional)"""
 
-DOMME_SETUP_REVIEW_TITLE = "Step Final: Review"
-DOMME_SETUP_REVIEW_DESCRIPTION = """Please review your profile details below.
+DOMME_SETUP_REVIEW_TITLE = "Final step: Review"
+DOMME_SETUP_REVIEW_DESCRIPTION = """Take a look at your profile below.
 
-Would you like to save this profile?"""
+Ready to save it?"""
 
-DOMME_SETUP_COMPLETE_TITLE = "Your domme profile is all setup!"
-DOMME_SETUP_COMPLETE_DESCRIPTION = """Run /domme or !domme to show profile.
+DOMME_SETUP_COMPLETE_TITLE = "Domme profile saved!"
+DOMME_SETUP_COMPLETE_DESCRIPTION = """Use **/domme** (or **!domme**) to show your profile in The Drain Server.
 
-Run /domme with the delete action, or !domme delete, to delete."""
+To delete it: use **/domme action:delete** or **!domme delete**."""
 
 DOMME_SETUP_LATER_TITLE = "Domme Profile Setup"
-DOMME_SETUP_LATER_DESCRIPTION = """No worries.
+DOMME_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
 
-Run /domme or !domme in the server whenever you're ready to continue."""
+Run **/domme** (or **!domme**) in The Drain Server when you're ready."""
 
 DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
-DOMME_SETUP_CANCELLED_DESCRIPTION = """No changes were saved.
+DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
 
-Run /domme or !domme again whenever you're ready."""
+Run **/domme** (or **!domme**) anytime to start again."""

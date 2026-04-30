@@ -1058,16 +1058,42 @@ class VerificationCog(commands.Cog):
     async def domme(
         self,
         ctx: commands.Context[commands.Bot],
-        action: str | None = None,
+        *args: str,
     ) -> None:
         if ctx.guild is None or not isinstance(ctx.author, discord.Member):
             await ctx.reply("This command can only be used in a server channel.", mention_author=False)
             return
 
-        content, embed, view = await self._build_domme_response(
+        action: str | None = None
+        target_member: discord.Member | None = None
+
+        for arg in args:
+            # Check if it's a mention or user ID
+            resolved = None
+            if arg.startswith("<@") and arg.endswith(">"):
+                uid_str = arg.strip("<@!>")
+                try:
+                    uid = int(uid_str)
+                    resolved = ctx.guild.get_member(uid)
+                except ValueError:
+                    pass
+            else:
+                try:
+                    uid = int(arg)
+                    resolved = ctx.guild.get_member(uid)
+                except ValueError:
+                    pass
+
+            if resolved is not None:
+                target_member = resolved
+            else:
+                action = arg
+
+        content, embed, view, is_public = await self._build_domme_response(
             member=ctx.author,
             guild=ctx.guild,
             action=action,
+            target_member=target_member,
         )
         reply = await ctx.reply(
             content=content,
@@ -1080,9 +1106,12 @@ class VerificationCog(commands.Cog):
 
     @app_commands.command(
         name="domme",
-        description="Starts your Domme profile setup or shows your saved profile.",
+        description="Shows your Domme profile publicly, or starts profile setup if you don't have one.",
     )
-    @app_commands.describe(action="Choose delete to remove your saved Domme profile.")
+    @app_commands.describe(
+        action="Choose delete to remove your saved Domme profile.",
+        user="View another member's Domme profile.",
+    )
     @app_commands.choices(
         action=[
             app_commands.Choice(name="Delete profile", value="delete"),
@@ -1092,6 +1121,7 @@ class VerificationCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         action: app_commands.Choice[str] | None = None,
+        user: discord.Member | None = None,
     ) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(
@@ -1100,16 +1130,17 @@ class VerificationCog(commands.Cog):
             )
             return
 
-        content, embed, view = await self._build_domme_response(
+        content, embed, view, is_public = await self._build_domme_response(
             member=interaction.user,
             guild=interaction.guild,
             action=action.value if action else None,
+            target_member=user,
         )
         await interaction.response.send_message(
             content=content,
             embed=embed,
             view=view,
-            ephemeral=True,
+            ephemeral=not is_public,
         )
         if view is not None:
             view.message = await interaction.original_response()
@@ -1139,38 +1170,52 @@ class VerificationCog(commands.Cog):
         member: discord.Member,
         guild: discord.Guild,
         action: str | None,
-    ) -> tuple[str | None, discord.Embed | None, discord.ui.View | None]:
+        target_member: discord.Member | None = None,
+    ) -> tuple[str | None, discord.Embed | None, discord.ui.View | None, bool]:
+        """Return (content, embed, view, is_public).
+
+        is_public=True means the response should be visible to the channel.
+        """
         domme_role = guild.get_role(self.config.domme_role_id)
         if domme_role is None:
-            return "I couldn't find the configured Domme role.", None, None
+            return "I couldn't find the configured Domme role.", None, None, False
 
         if domme_role not in member.roles:
-            return "Only members with the Domme role can use this command.", None, None
+            return "Only members with the Domme role can use this command.", None, None, False
+
+        # Viewing another member's profile
+        if target_member is not None and target_member != member:
+            profile = await self.database.get_domme_profile(user_id=target_member.id)
+            if profile is None:
+                return f"{target_member.display_name} doesn't have a Domme profile saved.", None, None, False
+            return None, embeds.domme_profile_embed(profile, target_member), None, True
 
         profile = await self.database.get_domme_profile(user_id=member.id)
         requested_action = (action or "").strip().lower()
 
         if requested_action == "delete":
             if profile is None:
-                return "You do not have a saved Domme profile to delete.", None, None
+                return "You do not have a saved Domme profile to delete.", None, None, False
             return (
                 "Are you sure you want to delete your Domme profile?",
                 None,
                 DommeDeleteConfirmView(self.domme_service, member.id),
+                False,
             )
 
         if profile is not None:
-            return None, embeds.domme_profile_embed(profile, member), None
+            return None, embeds.domme_profile_embed(profile, member), None, True
 
         if member.id in self.domme_service.sessions:
             return (
-                "You already have a Domme profile setup in progress. Please check your DMs.",
+                "You already have a setup in progress — check your DMs to continue.",
                 None,
                 None,
+                False,
             )
 
         started = await self.domme_service.start_setup(member)
         if not started:
-            return messages.DM_FAILURE_RESPONSE, None, None
+            return messages.DM_FAILURE_RESPONSE, None, None, False
 
-        return "Hey! Look in your DM’s!", None, None
+        return "I've sent you a DM to set up your Domme profile.", None, None, False
