@@ -195,6 +195,9 @@ Would you like to sign up for Throne tracking? When subs send to your Throne, th
 
 You can change this at any time."""
 
+DOMME_SETUP_COLOR_TITLE = "Step 5: Profile colour"
+DOMME_SETUP_COLOR_DESCRIPTION = """Choose a colour for your Domme profile. This will be the colour of the embed shown when your profile is viewed."""
+
 DOMME_SETUP_REVIEW_TITLE = "Final step: Review"
 DOMME_SETUP_REVIEW_DESCRIPTION = """Take a look at your profile below.
 

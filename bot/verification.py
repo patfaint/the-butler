@@ -27,6 +27,7 @@ from bot.utils import (
 )
 from bot.views import (
     DommeDeleteConfirmView,
+    DommeSetupColorView,
     DommeSetupDetailsView,
     DommeSetupIntroView,
     DommeSetupNameView,
@@ -58,10 +59,16 @@ class DommeProfileSession:
     age: str | None = None
     tribute_price: str | None = None
     throne: str | None = None
-    link1: str | None = None
-    link2: str | None = None
-    link3: str | None = None
-    link4: str | None = None
+    tribute_link: str | None = None
+    payment_link1: str | None = None
+    payment_link2: str | None = None
+    payment_link3: str | None = None
+    payment_link4: str | None = None
+    content_link1: str | None = None
+    content_link2: str | None = None
+    content_link3: str | None = None
+    content_link4: str | None = None
+    profile_color: int = 16737714  # default: pink
     throne_tracking_enabled: bool = False
 
 
@@ -818,8 +825,37 @@ class DommeProfileService:
     def build_cancelled_embed(self) -> discord.Embed:
         return embeds.domme_setup_cancelled_embed()
 
+    def _make_session_from_profile(self, profile: "DommeProfile") -> DommeProfileSession:
+        """Pre-populate a session from an existing saved profile."""
+        from bot.database import DommeProfile
+        session = DommeProfileSession(user_id=profile.user_id)
+        session.name = profile.name
+        session.honorific = profile.honorific
+        session.pronouns = profile.pronouns
+        session.age = profile.age
+        session.tribute_price = profile.tribute_price
+        session.throne = profile.throne
+        session.tribute_link = profile.tribute_link
+        session.payment_link1 = profile.payment_link1
+        session.payment_link2 = profile.payment_link2
+        session.payment_link3 = profile.payment_link3
+        session.payment_link4 = profile.payment_link4
+        session.content_link1 = profile.content_link1
+        session.content_link2 = profile.content_link2
+        session.content_link3 = profile.content_link3
+        session.content_link4 = profile.content_link4
+        session.profile_color = profile.profile_color
+        session.throne_tracking_enabled = profile.throne_tracking_enabled
+        return session
+
     async def start_setup(self, member: discord.Member) -> bool:
-        session = DommeProfileSession(user_id=member.id)
+        """Start setup via DM (server-triggered flow)."""
+        existing = await self.database.get_domme_profile(user_id=member.id)
+        session = (
+            self._make_session_from_profile(existing)
+            if existing
+            else DommeProfileSession(user_id=member.id)
+        )
         view = DommeSetupIntroView(self, session)
         try:
             session.message = await member.send(
@@ -828,10 +864,30 @@ class DommeProfileService:
             )
         except (discord.Forbidden, discord.HTTPException):
             return False
-
         session.current_view = view
         self.sessions[member.id] = session
         return True
+
+    async def start_setup_in_dm(
+        self,
+        user: discord.User,
+        interaction: discord.Interaction,
+    ) -> None:
+        """Start (or resume) setup when the user runs /domme inside a DM."""
+        existing = await self.database.get_domme_profile(user_id=user.id)
+        session = (
+            self._make_session_from_profile(existing)
+            if existing
+            else DommeProfileSession(user_id=user.id)
+        )
+        view = DommeSetupIntroView(self, session)
+        await interaction.response.send_message(
+            embed=embeds.domme_setup_intro_embed(),
+            view=view,
+        )
+        session.message = await interaction.original_response()
+        session.current_view = view
+        self.sessions[user.id] = session
 
     async def show_name_step(
         self,
@@ -872,15 +928,17 @@ class DommeProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.domme_setup_payments_embed(
+            embed=embeds.domme_setup_links_embed(
                 throne=session.throne,
-                paypal=session.paypal,
-                youpay=session.youpay,
-                cashapp=session.cashapp,
-                venmo=session.venmo,
-                beemit=session.beemit,
-                loyalfans=session.loyalfans,
-                onlyfans=session.onlyfans,
+                tribute_link=session.tribute_link,
+                payment_link1=session.payment_link1,
+                payment_link2=session.payment_link2,
+                payment_link3=session.payment_link3,
+                payment_link4=session.payment_link4,
+                content_link1=session.content_link1,
+                content_link2=session.content_link2,
+                content_link3=session.content_link3,
+                content_link4=session.content_link4,
             ),
             view=DommeSetupPaymentsView(self, session),
         )
@@ -901,7 +959,7 @@ class DommeProfileService:
             await self.show_throne_step(session, interaction)
             return
         session.throne_tracking_enabled = False
-        await self.show_coffee_step(session, interaction)
+        await self.show_color_step(session, interaction)
 
     async def show_throne_step(
         self,
@@ -915,7 +973,7 @@ class DommeProfileService:
             view=DommeSetupThroneView(self, session),
         )
 
-    async def show_coffee_step(
+    async def show_color_step(
         self,
         session: DommeProfileSession,
         interaction: discord.Interaction,
@@ -923,8 +981,8 @@ class DommeProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.domme_setup_coffee_embed(coffee_enabled=None),
-            view=DommeSetupCoffeeView(self, session),
+            embed=embeds.domme_setup_color_embed(profile_color=session.profile_color),
+            view=DommeSetupColorView(self, session),
         )
 
     async def show_review_step(
@@ -942,15 +1000,17 @@ class DommeProfileService:
                 age=session.age,
                 tribute_price=session.tribute_price,
                 throne=session.throne,
-                paypal=session.paypal,
-                youpay=session.youpay,
-                cashapp=session.cashapp,
-                venmo=session.venmo,
-                beemit=session.beemit,
-                loyalfans=session.loyalfans,
-                onlyfans=session.onlyfans,
+                tribute_link=session.tribute_link,
+                payment_link1=session.payment_link1,
+                payment_link2=session.payment_link2,
+                payment_link3=session.payment_link3,
+                payment_link4=session.payment_link4,
+                content_link1=session.content_link1,
+                content_link2=session.content_link2,
+                content_link3=session.content_link3,
+                content_link4=session.content_link4,
+                profile_color=session.profile_color,
                 throne_tracking_enabled=session.throne_tracking_enabled,
-                coffee_enabled=session.coffee_enabled,
             ),
             view=DommeSetupReviewView(self, session),
         )
@@ -968,15 +1028,17 @@ class DommeProfileService:
             age=session.age,
             tribute_price=session.tribute_price,
             throne=session.throne,
-            paypal=session.paypal,
-            youpay=session.youpay,
-            cashapp=session.cashapp,
-            venmo=session.venmo,
-            beemit=session.beemit,
-            loyalfans=session.loyalfans,
-            onlyfans=session.onlyfans,
+            tribute_link=session.tribute_link,
+            payment_link1=session.payment_link1,
+            payment_link2=session.payment_link2,
+            payment_link3=session.payment_link3,
+            payment_link4=session.payment_link4,
+            content_link1=session.content_link1,
+            content_link2=session.content_link2,
+            content_link3=session.content_link3,
+            content_link4=session.content_link4,
+            profile_color=session.profile_color,
             throne_tracking_enabled=session.throne_tracking_enabled,
-            coffee_enabled=session.coffee_enabled,
         )
         self.finish_session(session.user_id)
         await self._update_session_message(
@@ -994,7 +1056,6 @@ class DommeProfileService:
                 view=None,
             )
             return
-
         await interaction.response.edit_message(
             content="I couldn't find a saved Domme profile to delete.",
             view=None,
@@ -1028,6 +1089,143 @@ class DommeProfileService:
             self.finish_session(session.user_id)
 
 
+def _tribute_view(profile: "DommeProfile") -> discord.ui.View | None:
+    """Return a View with a Tribute link button, or None if no tribute_link is set."""
+    from bot.database import DommeProfile
+    if not profile.tribute_link:
+        return None
+
+    class TributeView(discord.ui.View):
+        def __init__(self) -> None:
+            super().__init__(timeout=None)
+            self.add_item(
+                discord.ui.Button(
+                    label="💸 Tribute",
+                    url=profile.tribute_link,  # type: ignore[arg-type]
+                    style=discord.ButtonStyle.link,
+                )
+            )
+
+    return TributeView()
+
+
+class SubProfileService:
+    def __init__(
+        self,
+        bot: discord.Client,
+        config: BotConfig,
+        database: Database,
+    ) -> None:
+        self.bot = bot
+        self.config = config
+        self.database = database
+        self.sessions: dict[int, SubProfileSession] = {}
+
+    def finish_session(self, user_id: int) -> None:
+        self.sessions.pop(user_id, None)
+
+    def build_later_embed(self) -> discord.Embed:
+        return embeds.sub_setup_later_embed()
+
+    def build_cancelled_embed(self) -> discord.Embed:
+        return embeds.sub_setup_cancelled_embed()
+
+    async def start_setup(self, user: discord.User, interaction: discord.Interaction) -> None:
+        """Start (or resume) setup from a slash-command interaction (DM or server)."""
+        existing = await self.database.get_sub_profile(user_id=user.id)
+        session = SubProfileSession(user_id=user.id)
+        if existing:
+            session.throne_name = existing.throne_name
+        view = SubSetupIntroView(self, session)
+        await interaction.response.send_message(
+            embed=embeds.sub_setup_intro_embed(),
+            view=view,
+            ephemeral=True,
+        )
+        session.message = await interaction.original_response()
+        session.current_view = view
+        self.sessions[user.id] = session
+
+    async def show_name_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_name_embed(throne_name=session.throne_name),
+            view=SubSetupNameView(self, session),
+        )
+
+    async def show_review_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_review_embed(throne_name=session.throne_name),
+            view=SubSetupReviewView(self, session),
+        )
+
+    async def save_profile(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self.database.save_sub_profile(
+            user_id=session.user_id,
+            throne_name=session.throne_name,
+        )
+        self.finish_session(session.user_id)
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_complete_embed(),
+            view=None,
+        )
+
+    async def delete_profile(self, interaction: discord.Interaction, user_id: int) -> None:
+        deleted = await self.database.delete_sub_profile(user_id=user_id)
+        if deleted:
+            await interaction.response.edit_message(
+                content="Your sub profile has been deleted.",
+                view=None,
+            )
+            return
+        await interaction.response.edit_message(
+            content="I couldn't find a saved sub profile to delete.",
+            view=None,
+        )
+
+    async def _update_session_message(
+        self,
+        session: SubProfileSession,
+        *,
+        interaction: discord.Interaction,
+        embed: discord.Embed,
+        view: discord.ui.View | None,
+    ) -> None:
+        if session.message is None:
+            return
+        previous_view = session.current_view
+        if previous_view and previous_view is not view:
+            previous_view.stop()
+        try:
+            if interaction.response.is_done():
+                await session.message.edit(embed=embed, view=view)
+            else:
+                await interaction.response.edit_message(embed=embed, view=view)
+                if interaction.message:
+                    session.message = interaction.message
+            session.current_view = view
+        except discord.HTTPException:
+            log.exception("Failed to update sub profile setup for %s.", session.user_id)
+            self.finish_session(session.user_id)
+
+
 class VerificationCog(commands.Cog):
     def __init__(
         self,
@@ -1040,6 +1238,48 @@ class VerificationCog(commands.Cog):
         self.database = database
         self.service = VerificationService(bot, config, database)
         self.domme_service = DommeProfileService(bot, config, database)
+        self.sub_service = SubProfileService(bot, config, database)
+        self.leaderboard_task.start()
+
+    def cog_unload(self) -> None:
+        self.leaderboard_task.cancel()
+
+    @tasks.loop(minutes=5)
+    async def leaderboard_task(self) -> None:
+        """Update the server leaderboard message every 5 minutes."""
+        if not self.config.leaderboard_channel_id:
+            return
+        guild = self.bot.get_guild(self.config.guild_id)
+        if guild is None:
+            return
+        channel = guild.get_channel(self.config.leaderboard_channel_id)
+        if not isinstance(channel, discord.TextChannel):
+            return
+        sends = await self.database.get_all_sends()
+        embed = embeds.server_leaderboard_embed(sends, self.bot)
+        stored = await self.database.get_leaderboard_message(guild_id=guild.id)
+        if stored is not None:
+            msg_id, _ = stored
+            try:
+                msg = await channel.fetch_message(msg_id)
+                await msg.edit(embed=embed)
+                return
+            except discord.NotFound:
+                pass
+        # Post a new leaderboard message
+        try:
+            msg = await channel.send(embed=embed)
+            await self.database.upsert_leaderboard_message(
+                guild_id=guild.id,
+                message_id=msg.id,
+                channel_id=channel.id,
+            )
+        except discord.HTTPException:
+            log.exception("Failed to post leaderboard message.")
+
+    @leaderboard_task.before_loop
+    async def before_leaderboard_task(self) -> None:
+        await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member) -> None:
@@ -1075,10 +1315,9 @@ class VerificationCog(commands.Cog):
         target_member: discord.Member | None = None
 
         for arg in args:
-            # Check if it's a mention or user ID
             resolved = None
             if arg.startswith("<@") and arg.endswith(">"):
-                uid_str = arg[2:-1].lstrip("!")  # Handle both <@123> and <@!123>
+                uid_str = arg[2:-1].lstrip("!")
                 try:
                     uid = int(uid_str)
                     resolved = ctx.guild.get_member(uid)
@@ -1096,7 +1335,7 @@ class VerificationCog(commands.Cog):
             else:
                 action = arg
 
-        content, embed, view, is_public = await self._build_domme_response(
+        content, embed, view, is_public, _ = await self._build_domme_response(
             member=ctx.author,
             guild=ctx.guild,
             action=action,
@@ -1108,12 +1347,12 @@ class VerificationCog(commands.Cog):
             view=view,
             mention_author=False,
         )
-        if view is not None:
+        if view is not None and hasattr(view, "message"):
             view.message = reply
 
     @app_commands.command(
         name="domme",
-        description="Shows your Domme profile publicly, or starts profile setup if you don't have one.",
+        description="Shows your Domme profile, starts setup, or edits your profile in DMs.",
     )
     @app_commands.describe(
         action="Choose delete to remove your saved Domme profile.",
@@ -1130,14 +1369,40 @@ class VerificationCog(commands.Cog):
         action: app_commands.Choice[str] | None = None,
         user: discord.Member | None = None,
     ) -> None:
-        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+        # DM context — start edit flow directly
+        if interaction.guild is None:
+            guild = self.bot.get_guild(self.config.guild_id)
+            if guild is None:
+                await interaction.response.send_message(
+                    "I couldn't find the configured server.",
+                    ephemeral=True,
+                )
+                return
+            member = guild.get_member(interaction.user.id)
+            domme_role = guild.get_role(self.config.domme_role_id)
+            if member is None or domme_role is None or domme_role not in member.roles:
+                await interaction.response.send_message(
+                    "Only members with the Domme role can use this command.",
+                    ephemeral=True,
+                )
+                return
+            if interaction.user.id in self.domme_service.sessions:
+                await interaction.response.send_message(
+                    "You already have a setup in progress — scroll up to find it.",
+                    ephemeral=True,
+                )
+                return
+            await self.domme_service.start_setup_in_dm(interaction.user, interaction)
+            return
+
+        if not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(
-                "This command can only be used in a server channel.",
+                "This command can only be used in a server channel or DM.",
                 ephemeral=True,
             )
             return
 
-        content, embed, view, is_public = await self._build_domme_response(
+        content, embed, view, is_public, leaderboard_embed = await self._build_domme_response(
             member=interaction.user,
             guild=interaction.guild,
             action=action.value if action else None,
@@ -1149,8 +1414,138 @@ class VerificationCog(commands.Cog):
             view=view,
             ephemeral=not is_public,
         )
-        if view is not None:
+        if view is not None and hasattr(view, "message"):
             view.message = await interaction.original_response()
+        # Show personal leaderboard as ephemeral follow-up to the domme themselves
+        if leaderboard_embed is not None:
+            await interaction.followup.send(embed=leaderboard_embed, ephemeral=True)
+
+    @app_commands.command(
+        name="sub",
+        description="Create or edit your sub profile to link your Throne name to your Discord.",
+    )
+    @app_commands.describe(action="Choose delete to remove your sub profile.")
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="Delete profile", value="delete"),
+        ]
+    )
+    async def sub_slash(
+        self,
+        interaction: discord.Interaction,
+        action: app_commands.Choice[str] | None = None,
+    ) -> None:
+        # Check guild membership (works from DM too)
+        guild = interaction.guild or self.bot.get_guild(self.config.guild_id)
+        if guild is None:
+            await interaction.response.send_message(
+                "I couldn't find the configured server.",
+                ephemeral=True,
+            )
+            return
+        member = guild.get_member(interaction.user.id)
+        if member is None:
+            await interaction.response.send_message(
+                "You must be a member of the server to use this command.",
+                ephemeral=True,
+            )
+            return
+
+        if action and action.value == "delete":
+            profile = await self.database.get_sub_profile(user_id=interaction.user.id)
+            if profile is None:
+                await interaction.response.send_message(
+                    "You don't have a saved sub profile to delete.",
+                    ephemeral=True,
+                )
+                return
+            view = SubDeleteConfirmView(self.sub_service, interaction.user.id)
+            msg = await interaction.response.send_message(
+                "Are you sure you want to delete your sub profile?",
+                view=view,
+                ephemeral=True,
+            )
+            view.message = await interaction.original_response()
+            return
+
+        if interaction.user.id in self.sub_service.sessions:
+            await interaction.response.send_message(
+                "You already have a setup in progress — scroll up to find it.",
+                ephemeral=True,
+            )
+            return
+
+        await self.sub_service.start_setup(interaction.user, interaction)
+
+    @app_commands.command(
+        name="log_send",
+        description="[Mod] Log a Throne send received by a Domme.",
+    )
+    @app_commands.describe(
+        domme="The Domme who received the send.",
+        sub_throne_name="The sender's Throne name (leave blank if anonymous).",
+        amount="Amount in USD (e.g. 25.00).",
+        item_name="Name of the item purchased (optional).",
+        item_image_url="Image URL of the item (optional).",
+    )
+    async def log_send_slash(
+        self,
+        interaction: discord.Interaction,
+        domme: discord.Member,
+        amount: app_commands.Range[float, 0.01],
+        sub_throne_name: str | None = None,
+        item_name: str | None = None,
+        item_image_url: str | None = None,
+    ) -> None:
+        if not has_admin_command_permissions(interaction):
+            await interaction.response.send_message(
+                "You don't have permission to use this command.",
+                ephemeral=True,
+            )
+            return
+
+        guild = interaction.guild or self.bot.get_guild(self.config.guild_id)
+        domme_profile = await self.database.get_domme_profile(user_id=domme.id)
+        if domme_profile is None:
+            await interaction.response.send_message(
+                f"{domme.mention} doesn't have a Domme profile set up.",
+                ephemeral=True,
+            )
+            return
+
+        send_id = await self.database.log_throne_send(
+            domme_user_id=domme.id,
+            sub_throne_name=sub_throne_name or None,
+            amount_usd=amount,
+            item_name=item_name or None,
+            item_image_url=item_image_url or None,
+            logged_by=interaction.user.id,
+        )
+
+        # Fetch the full send record so we can build the embed
+        sends = await self.database.get_sends_for_domme(domme_user_id=domme.id)
+        send = next((s for s in sends if s.id == send_id), None)
+
+        await interaction.response.send_message(
+            f"✅ Send logged (#{send_id}).",
+            ephemeral=True,
+        )
+
+        # Post to sends channel
+        if send and self.config.sends_channel_id and guild:
+            channel = guild.get_channel(self.config.sends_channel_id)
+            if isinstance(channel, discord.TextChannel):
+                send_embed = embeds.throne_send_log_embed(send, domme)
+                try:
+                    await channel.send(embed=send_embed)
+                except discord.HTTPException:
+                    log.exception("Failed to post to sends channel.")
+
+        # Trigger an immediate leaderboard refresh
+        if self.leaderboard_task.is_running():
+            self.leaderboard_task.restart()
+        else:
+            self.leaderboard_task.start()
 
     @app_commands.command(
         name="help",
@@ -1171,6 +1566,11 @@ class VerificationCog(commands.Cog):
             ephemeral=True,
         )
 
+    def _is_verified(self, member: discord.Member) -> bool:
+        """Return True if the member has the configured verified role."""
+        verified_role = member.guild.get_role(self.config.verified_role_id) if self.config.verified_role_id else None
+        return verified_role is not None and verified_role in member.roles
+
     async def _build_domme_response(
         self,
         *,
@@ -1178,40 +1578,52 @@ class VerificationCog(commands.Cog):
         guild: discord.Guild,
         action: str | None,
         target_member: discord.Member | None = None,
-    ) -> tuple[str | None, discord.Embed | None, discord.ui.View | None, bool]:
-        """Return (content, embed, view, is_public).
+    ) -> tuple[str | None, discord.Embed | None, discord.ui.View | None, bool, discord.Embed | None]:
+        """Return (content, embed, view, is_public, leaderboard_embed).
 
-        is_public=True means the response should be visible to the channel.
+        leaderboard_embed is only set when the caller is viewing their own profile and has sends.
         """
         domme_role = guild.get_role(self.config.domme_role_id)
         if domme_role is None:
-            return "I couldn't find the configured Domme role.", None, None, False
+            return "I couldn't find the configured Domme role.", None, None, False, None
 
         if domme_role not in member.roles:
-            return "Only members with the Domme role can use this command.", None, None, False
+            return "Only members with the Domme role can use this command.", None, None, False, None
 
         # Viewing another member's profile
         if target_member is not None and target_member != member:
             profile = await self.database.get_domme_profile(user_id=target_member.id)
             if profile is None:
-                return f"{target_member.display_name} doesn't have a Domme profile saved.", None, None, False
-            return None, embeds.domme_profile_embed(profile, target_member), None, True
+                return f"{target_member.display_name} doesn't have a Domme profile saved.", None, None, False, None
+            is_verified = self._is_verified(target_member)
+            embed = embeds.domme_profile_embed(profile, target_member, is_verified=is_verified)
+            view = _tribute_view(profile)
+            return None, embed, view, True, None
 
         profile = await self.database.get_domme_profile(user_id=member.id)
         requested_action = (action or "").strip().lower()
 
         if requested_action == "delete":
             if profile is None:
-                return "You do not have a saved Domme profile to delete.", None, None, False
+                return "You do not have a saved Domme profile to delete.", None, None, False, None
             return (
                 "Are you sure you want to delete your Domme profile?",
                 None,
                 DommeDeleteConfirmView(self.domme_service, member.id),
                 False,
+                None,
             )
 
         if profile is not None:
-            return None, embeds.domme_profile_embed(profile, member), None, True
+            is_verified = self._is_verified(member)
+            embed = embeds.domme_profile_embed(profile, member, is_verified=is_verified)
+            view = _tribute_view(profile)
+            # Personal leaderboard as ephemeral follow-up
+            leaderboard_embed: discord.Embed | None = None
+            sends = await self.database.get_sends_for_domme(domme_user_id=member.id)
+            if sends:
+                leaderboard_embed = embeds.domme_send_leaderboard_embed(sends, member)
+            return None, embed, view, True, leaderboard_embed
 
         if member.id in self.domme_service.sessions:
             return (
@@ -1219,10 +1631,11 @@ class VerificationCog(commands.Cog):
                 None,
                 None,
                 False,
+                None,
             )
 
         started = await self.domme_service.start_setup(member)
         if not started:
-            return messages.DM_FAILURE_RESPONSE, None, None, False
+            return messages.DM_FAILURE_RESPONSE, None, None, False, None
 
-        return "I've sent you a DM to set up your Domme profile.", None, None, False
+        return "I've sent you a DM to set up your Domme profile.", None, None, False, None

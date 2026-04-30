@@ -52,10 +52,16 @@ class DommeProfile:
     age: str | None
     tribute_price: str | None
     throne: str | None
-    link1: str | None
-    link2: str | None
-    link3: str | None
-    link4: str | None
+    tribute_link: str | None
+    payment_link1: str | None
+    payment_link2: str | None
+    payment_link3: str | None
+    payment_link4: str | None
+    content_link1: str | None
+    content_link2: str | None
+    content_link3: str | None
+    content_link4: str | None
+    profile_color: int
     throne_tracking_enabled: bool
     created_at: str
 
@@ -69,10 +75,16 @@ class DommeProfile:
             age=row["age"],
             tribute_price=row["tribute_price"],
             throne=row["throne"],
-            link1=row["link1"],
-            link2=row["link2"],
-            link3=row["link3"],
-            link4=row["link4"],
+            tribute_link=row["tribute_link"],
+            payment_link1=row["payment_link1"],
+            payment_link2=row["payment_link2"],
+            payment_link3=row["payment_link3"],
+            payment_link4=row["payment_link4"],
+            content_link1=row["content_link1"],
+            content_link2=row["content_link2"],
+            content_link3=row["content_link3"],
+            content_link4=row["content_link4"],
+            profile_color=row["profile_color"] or 16737714,
             throne_tracking_enabled=bool(row["throne_tracking_enabled"]),
             created_at=row["created_at"],
         )
@@ -179,10 +191,16 @@ class Database:
                 age TEXT,
                 tribute_price TEXT,
                 throne TEXT,
-                link1 TEXT,
-                link2 TEXT,
-                link3 TEXT,
-                link4 TEXT,
+                tribute_link TEXT,
+                payment_link1 TEXT,
+                payment_link2 TEXT,
+                payment_link3 TEXT,
+                payment_link4 TEXT,
+                content_link1 TEXT,
+                content_link2 TEXT,
+                content_link3 TEXT,
+                content_link4 TEXT,
+                profile_color INTEGER NOT NULL DEFAULT 16737714,
                 throne_tracking_enabled INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL
             );
@@ -394,14 +412,20 @@ class Database:
         return updated
 
     async def _migrate_domme_profiles(self) -> None:
-        """Add new link columns to domme_profiles if they don't exist yet (schema migration)."""
+        """Add new columns to domme_profiles if they don't exist yet (schema migration)."""
         async with self.connection.execute("PRAGMA table_info(domme_profiles)") as cursor:
             columns = {row["name"] for row in await cursor.fetchall()}
-        new_columns = {
-            "link1": "TEXT",
-            "link2": "TEXT",
-            "link3": "TEXT",
-            "link4": "TEXT",
+        new_columns: dict[str, str] = {
+            "tribute_link": "TEXT",
+            "payment_link1": "TEXT",
+            "payment_link2": "TEXT",
+            "payment_link3": "TEXT",
+            "payment_link4": "TEXT",
+            "content_link1": "TEXT",
+            "content_link2": "TEXT",
+            "content_link3": "TEXT",
+            "content_link4": "TEXT",
+            "profile_color": "INTEGER NOT NULL DEFAULT 16737714",
         }
         for col, col_type in new_columns.items():
             if col not in columns:
@@ -446,10 +470,16 @@ class Database:
         age: str | None,
         tribute_price: str | None,
         throne: str | None,
-        link1: str | None,
-        link2: str | None,
-        link3: str | None,
-        link4: str | None,
+        tribute_link: str | None,
+        payment_link1: str | None,
+        payment_link2: str | None,
+        payment_link3: str | None,
+        payment_link4: str | None,
+        content_link1: str | None,
+        content_link2: str | None,
+        content_link3: str | None,
+        content_link4: str | None,
+        profile_color: int,
         throne_tracking_enabled: bool,
     ) -> None:
         async with self.connection.execute(
@@ -462,14 +492,20 @@ class Database:
                 age,
                 tribute_price,
                 throne,
-                link1,
-                link2,
-                link3,
-                link4,
+                tribute_link,
+                payment_link1,
+                payment_link2,
+                payment_link3,
+                payment_link4,
+                content_link1,
+                content_link2,
+                content_link3,
+                content_link4,
+                profile_color,
                 throne_tracking_enabled,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 name = excluded.name,
                 honorific = excluded.honorific,
@@ -477,10 +513,16 @@ class Database:
                 age = excluded.age,
                 tribute_price = excluded.tribute_price,
                 throne = excluded.throne,
-                link1 = excluded.link1,
-                link2 = excluded.link2,
-                link3 = excluded.link3,
-                link4 = excluded.link4,
+                tribute_link = excluded.tribute_link,
+                payment_link1 = excluded.payment_link1,
+                payment_link2 = excluded.payment_link2,
+                payment_link3 = excluded.payment_link3,
+                payment_link4 = excluded.payment_link4,
+                content_link1 = excluded.content_link1,
+                content_link2 = excluded.content_link2,
+                content_link3 = excluded.content_link3,
+                content_link4 = excluded.content_link4,
+                profile_color = excluded.profile_color,
                 throne_tracking_enabled = excluded.throne_tracking_enabled,
                 created_at = domme_profiles.created_at
             """,
@@ -492,10 +534,16 @@ class Database:
                 age,
                 tribute_price,
                 throne,
-                link1,
-                link2,
-                link3,
-                link4,
+                tribute_link,
+                payment_link1,
+                payment_link2,
+                payment_link3,
+                payment_link4,
+                content_link1,
+                content_link2,
+                content_link3,
+                content_link4,
+                profile_color,
                 int(throne_tracking_enabled),
                 _utc_now(),
             ),
