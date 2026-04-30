@@ -6,6 +6,7 @@ import random
 import sqlite3
 import time
 from dataclasses import dataclass
+from urllib.parse import urlparse
 
 import discord
 from discord import app_commands
@@ -1089,10 +1090,36 @@ class DommeProfileService:
             self.finish_session(session.user_id)
 
 
+def _normalize_url(url: str) -> str | None:
+    """Ensure a URL has a scheme (prepend https:// if missing) and is http/https.
+
+    Returns the normalized URL, or None if the URL is empty or uses an
+    unsupported scheme.
+    """
+    url = url.strip()
+    if not url:
+        return None
+    parsed = urlparse(url)
+    if parsed.scheme:
+        # Already has a scheme — accept http/https only
+        if parsed.scheme not in ("http", "https") or not parsed.netloc:
+            return None
+        return url
+    # No scheme detected — prepend https://
+    url = "https://" + url
+    parsed = urlparse(url)
+    if not parsed.netloc:
+        return None
+    return url
+
+
 def _tribute_view(profile: "DommeProfile") -> discord.ui.View | None:
-    """Return a View with a Tribute link button, or None if no tribute_link is set."""
+    """Return a View with a Tribute link button, or None if no valid tribute_link."""
     from bot.database import DommeProfile
     if not profile.tribute_link:
+        return None
+    safe_url = _normalize_url(profile.tribute_link)
+    if safe_url is None:
         return None
 
     class TributeView(discord.ui.View):
@@ -1101,7 +1128,7 @@ def _tribute_view(profile: "DommeProfile") -> discord.ui.View | None:
             self.add_item(
                 discord.ui.Button(
                     label="💸 Tribute",
-                    url=profile.tribute_link,  # type: ignore[arg-type]
+                    url=safe_url,
                     style=discord.ButtonStyle.link,
                 )
             )
@@ -1255,8 +1282,8 @@ class VerificationCog(commands.Cog):
         channel = guild.get_channel(self.config.leaderboard_channel_id)
         if not isinstance(channel, discord.TextChannel):
             return
-        sends = await self.database.get_all_sends()
-        embed = embeds.server_leaderboard_embed(sends, self.bot)
+        rows = await self.database.get_leaderboard_top_sends()
+        embed = embeds.server_leaderboard_embed(rows, self.bot)
         stored = await self.database.get_leaderboard_message(guild_id=guild.id)
         if stored is not None:
             msg_id, _ = stored
@@ -1266,7 +1293,7 @@ class VerificationCog(commands.Cog):
                 return
             except discord.NotFound:
                 pass
-        # Post a new leaderboard message
+        # Post a new leaderboard message and pin it
         try:
             msg = await channel.send(embed=embed)
             await self.database.upsert_leaderboard_message(
@@ -1274,6 +1301,10 @@ class VerificationCog(commands.Cog):
                 message_id=msg.id,
                 channel_id=channel.id,
             )
+            try:
+                await msg.pin()
+            except (discord.Forbidden, discord.HTTPException):
+                log.warning("Could not pin leaderboard message in channel %s.", channel.id)
         except discord.HTTPException:
             log.exception("Failed to post leaderboard message.")
 
@@ -1379,6 +1410,17 @@ class VerificationCog(commands.Cog):
                 )
                 return
             member = guild.get_member(interaction.user.id)
+            if member is None:
+                try:
+                    member = await guild.fetch_member(interaction.user.id)
+                except discord.NotFound:
+                    member = None
+                except (discord.Forbidden, discord.HTTPException):
+                    await interaction.response.send_message(
+                        "I couldn't verify your server membership right now. Please try again in a moment.",
+                        ephemeral=True,
+                    )
+                    return
             domme_role = guild.get_role(self.config.domme_role_id)
             if member is None or domme_role is None or domme_role not in member.roles:
                 await interaction.response.send_message(
@@ -1445,6 +1487,17 @@ class VerificationCog(commands.Cog):
             return
         member = guild.get_member(interaction.user.id)
         if member is None:
+            try:
+                member = await guild.fetch_member(interaction.user.id)
+            except discord.NotFound:
+                member = None
+            except (discord.Forbidden, discord.HTTPException):
+                await interaction.response.send_message(
+                    "I couldn't verify your server membership right now. Please try again in a moment.",
+                    ephemeral=True,
+                )
+                return
+        if member is None:
             await interaction.response.send_message(
                 "You must be a member of the server to use this command.",
                 ephemeral=True,
@@ -1492,12 +1545,15 @@ class VerificationCog(commands.Cog):
         self,
         interaction: discord.Interaction,
         domme: discord.Member,
-        amount: app_commands.Range[float, 0.01],
+        amount: app_commands.Range[float, 0.01, None],
         sub_throne_name: str | None = None,
         item_name: str | None = None,
         item_image_url: str | None = None,
     ) -> None:
-        if not has_admin_command_permissions(interaction):
+        if (
+            not isinstance(interaction.user, discord.Member)
+            or not has_admin_command_permissions(interaction.user, self.config)
+        ):
             await interaction.response.send_message(
                 "You don't have permission to use this command.",
                 ephemeral=True,

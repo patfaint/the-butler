@@ -186,16 +186,20 @@ DOMME_SETUP_DETAILS_TITLE = "Step 2: Details"
 DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details you'd like displayed on your profile."""
 
 DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Links"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your **Throne** link and up to 4 additional links (PayPal, CashApp, etc.)."""
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your links across three sections:
 
-DOMME_SETUP_THRONE_TITLE = "Step 4: Throne tracking"
+• **Throne & Tribute** — your Throne wishlist URL and your preferred tribute link (shown as a button on your profile)
+• **Payment Links** — up to 4 payment methods (PayPal, CashApp, Venmo, etc.)
+• **Content Links** — up to 4 content platforms (OnlyFans, Fansly, etc.)"""
+
+DOMME_SETUP_THRONE_TITLE = "Throne tracking"
 DOMME_SETUP_THRONE_DESCRIPTION = """It looks like you added a Throne link.
 
 Would you like to sign up for Throne tracking? When subs send to your Throne, their sends will be recorded in the server and shown on the leaderboard.
 
 You can change this at any time."""
 
-DOMME_SETUP_COLOR_TITLE = "Step 5: Profile colour"
+DOMME_SETUP_COLOR_TITLE = "Step 4: Profile colour"
 DOMME_SETUP_COLOR_DESCRIPTION = """Choose a colour for your Domme profile. This will be the colour of the embed shown when your profile is viewed."""
 
 DOMME_SETUP_REVIEW_TITLE = "Final step: Review"

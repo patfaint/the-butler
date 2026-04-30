@@ -132,6 +132,15 @@ class ThroneSend:
         )
 
 
+@dataclass(frozen=True)
+class LeaderboardRow:
+    """Pre-aggregated row used by the server leaderboard embed."""
+    sub_throne_name: str | None
+    claimed_sub_user_id: int | None
+    domme_user_id: int
+    total_usd: float
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -677,6 +686,38 @@ class Database:
         ) as cursor:
             rows = await cursor.fetchall()
         return [ThroneSend.from_row(row) for row in rows]
+
+    async def get_leaderboard_top_sends(self, limit: int = 25) -> list[LeaderboardRow]:
+        """Return SQL-aggregated (sub, domme, total) rows sorted by total DESC.
+
+        Aggregation is done in the database to avoid loading the full table.
+        """
+        async with self.connection.execute(
+            """
+            SELECT
+                sub_throne_name,
+                claimed_sub_user_id,
+                domme_user_id,
+                SUM(amount_usd) AS total_usd
+            FROM throne_sends
+            GROUP BY
+                COALESCE(CAST(claimed_sub_user_id AS TEXT), sub_throne_name, 'anonymous'),
+                domme_user_id
+            ORDER BY total_usd DESC
+            LIMIT ?
+            """,
+            (limit,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [
+            LeaderboardRow(
+                sub_throne_name=row["sub_throne_name"],
+                claimed_sub_user_id=int(row["claimed_sub_user_id"]) if row["claimed_sub_user_id"] is not None else None,
+                domme_user_id=int(row["domme_user_id"]),
+                total_usd=float(row["total_usd"]),
+            )
+            for row in rows
+        ]
 
     async def get_leaderboard_message(self, *, guild_id: int) -> tuple[int, int] | None:
         """Return (message_id, channel_id) or None."""

@@ -6,7 +6,7 @@ import discord
 
 from bot import messages
 from bot.config import BotConfig
-from bot.database import DommeProfile, SubProfile, ThroneSend, VerificationRequest
+from bot.database import DommeProfile, LeaderboardRow, SubProfile, ThroneSend, VerificationRequest
 from bot.utils import detect_platform, mention_channel, user_mention
 
 PURPLE = discord.Color.from_rgb(181, 101, 255)
@@ -409,7 +409,7 @@ def domme_setup_details_embed(
     embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
     embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
-    embed.set_footer(text="The Butler • Step 2/5")
+    embed.set_footer(text="The Butler • Step 2/4")
     return embed
 
 
@@ -464,7 +464,7 @@ def domme_setup_throne_embed(*, throne: str | None) -> discord.Embed:
         color=PINK,
     )
     embed.add_field(name="Throne", value=_profile_value(throne), inline=False)
-    embed.set_footer(text="The Butler • Step 4/4")
+    embed.set_footer(text="The Butler • Throne tracking (optional)")
     return embed
 
 
@@ -481,7 +481,7 @@ def domme_setup_color_embed(*, profile_color: int) -> discord.Embed:
         color=color,
     )
     embed.add_field(name="Selected Color", value=label, inline=False)
-    embed.set_footer(text="The Butler • Step 4/4 (colour)")
+    embed.set_footer(text="The Butler • Step 4/4")
     return embed
 
 
@@ -710,7 +710,7 @@ def domme_send_leaderboard_embed(
 
 
 def server_leaderboard_embed(
-    sends: list[ThroneSend],
+    rows: list[LeaderboardRow],
     bot: discord.Client,
 ) -> discord.Embed:
     """Server-wide leaderboard embed (updated every 5 minutes)."""
@@ -719,33 +719,21 @@ def server_leaderboard_embed(
         color=PURPLE,
         timestamp=datetime.now(timezone.utc),
     )
-    if not sends:
+    if not rows:
         embed.description = "No sends recorded yet. Be the first!"
         embed.set_footer(text="The Drain Server • Updates every 5 minutes")
         return embed
 
-    # Build (sub_label, domme_label, total) per (sub_key, domme_user_id) pair
-    from collections import defaultdict
-
-    pair_totals: dict[tuple[str, int], float] = defaultdict(float)
-    sub_labels: dict[str, str] = {}
-    for send in sends:
-        sub_key = str(send.claimed_sub_user_id) if send.claimed_sub_user_id else (send.sub_throne_name or "anonymous")
-        pair_totals[(sub_key, send.domme_user_id)] += send.amount_usd
-        if sub_key not in sub_labels:
-            if send.claimed_sub_user_id:
-                sub_labels[sub_key] = f"<@{send.claimed_sub_user_id}>"
-            elif send.sub_throne_name:
-                sub_labels[sub_key] = f"{send.sub_throne_name} *(Unclaimed)*"
-            else:
-                sub_labels[sub_key] = "*Unclaimed*"
-
-    sorted_pairs = sorted(pair_totals.items(), key=lambda x: x[1], reverse=True)
     lines: list[str] = []
-    for (sub_key, domme_id), total in sorted_pairs[:25]:
-        sub_label = sub_labels.get(sub_key, "*Unclaimed*")
-        domme_label = f"<@{domme_id}>"
-        lines.append(f"{sub_label} ~ {domme_label}     **${total:,.2f}**")
+    for row in rows:
+        if row.claimed_sub_user_id:
+            sub_label = f"<@{row.claimed_sub_user_id}>"
+        elif row.sub_throne_name:
+            sub_label = f"{row.sub_throne_name} *(Unclaimed)*"
+        else:
+            sub_label = "*Unclaimed*"
+        domme_label = f"<@{row.domme_user_id}>"
+        lines.append(f"{sub_label} ~ {domme_label}     **${row.total_usd:,.2f}**")
 
     embed.description = "\n".join(lines)
     embed.set_footer(text="The Drain Server • Updates every 5 minutes")
