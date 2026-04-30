@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import discord
 from discord import app_commands
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from bot import embeds, messages
 from bot.config import BotConfig
@@ -27,7 +27,6 @@ from bot.utils import (
 )
 from bot.views import (
     DommeDeleteConfirmView,
-    DommeSetupCoffeeView,
     DommeSetupDetailsView,
     DommeSetupIntroView,
     DommeSetupNameView,
@@ -38,6 +37,10 @@ from bot.views import (
     HelpView,
     RoleSelectionView,
     StaffReviewView,
+    SubDeleteConfirmView,
+    SubSetupIntroView,
+    SubSetupNameView,
+    SubSetupReviewView,
     VerificationPanelView,
 )
 
@@ -55,15 +58,19 @@ class DommeProfileSession:
     age: str | None = None
     tribute_price: str | None = None
     throne: str | None = None
-    paypal: str | None = None
-    youpay: str | None = None
-    cashapp: str | None = None
-    venmo: str | None = None
-    beemit: str | None = None
-    loyalfans: str | None = None
-    onlyfans: str | None = None
+    link1: str | None = None
+    link2: str | None = None
+    link3: str | None = None
+    link4: str | None = None
     throne_tracking_enabled: bool = False
-    coffee_enabled: bool = False
+
+
+@dataclass
+class SubProfileSession:
+    user_id: int
+    message: discord.Message | None = None
+    current_view: discord.ui.View | None = None
+    throne_name: str | None = None
 
 
 class VerificationService:

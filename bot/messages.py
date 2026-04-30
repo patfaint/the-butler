@@ -172,7 +172,7 @@ DOMME_SETUP_INTRO_DESCRIPTION = """This quick setup lets you create or update yo
 
 Your profile can be shown with **/domme** (or **!domme**) and is used for things like:
 • Payment links and tribute info
-• Throne tracking and coffee-send alerts for subs
+• Throne tracking so subs can see who's sending to you
 • Introducing yourself to the server
 
 **Everything is optional.** Skip anything you'd rather leave out and come back anytime.
@@ -185,16 +185,15 @@ DOMME_SETUP_NAME_DESCRIPTION = """How would you like subs to address you? Add yo
 DOMME_SETUP_DETAILS_TITLE = "Step 2: Details"
 DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details you'd like displayed on your profile."""
 
-DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Payment methods"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add any payment links or handles you want saved to your profile."""
+DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Links"
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your **Throne** link and up to 4 additional links (PayPal, CashApp, etc.)."""
 
 DOMME_SETUP_THRONE_TITLE = "Step 4: Throne tracking"
 DOMME_SETUP_THRONE_DESCRIPTION = """It looks like you added a Throne link.
 
-Would you like to enable Throne tracking for your profile? You can change this at any time."""
+Would you like to sign up for Throne tracking? When subs send to your Throne, their sends will be recorded in the server and shown on the leaderboard.
 
-DOMME_SETUP_COFFEE_TITLE = "Step 5: Coffee alerts"
-DOMME_SETUP_COFFEE_DESCRIPTION = """Would you like to enable coffee-send alerts for subs? (Optional)"""
+You can change this at any time."""
 
 DOMME_SETUP_REVIEW_TITLE = "Final step: Review"
 DOMME_SETUP_REVIEW_DESCRIPTION = """Take a look at your profile below.
@@ -215,3 +214,35 @@ DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
 DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
 
 Run **/domme** (or **!domme**) anytime to start again."""
+
+SUB_SETUP_INTRO_TITLE = "Sub Profile Setup"
+SUB_SETUP_INTRO_DESCRIPTION = """This lets you link your Throne sending name to your Discord account.
+
+When a Domme in the server receives a send on Throne, the bot will check if the sender's name matches yours and credit you on the server leaderboard.
+
+Press **Continue** when you're ready, or **Later** to come back another time."""
+
+SUB_SETUP_NAME_TITLE = "Throne Name"
+SUB_SETUP_NAME_DESCRIPTION = """**What name do you use when sending on Throne?**
+
+This will be linked to your Discord account and used to identify your sends on the server leaderboard."""
+
+SUB_SETUP_REVIEW_TITLE = "Final step: Review"
+SUB_SETUP_REVIEW_DESCRIPTION = """Take a look below and confirm your details."""
+
+SUB_SETUP_COMPLETE_TITLE = "Sub profile saved!"
+SUB_SETUP_COMPLETE_DESCRIPTION = """Your Throne name is now linked to your Discord account.
+
+Any sends you've already made to Dommes in this server will be credited to you on the leaderboard.
+
+Use **/sub action:delete** to remove your profile at any time."""
+
+SUB_SETUP_LATER_TITLE = "Sub Profile Setup"
+SUB_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
+
+Run **/sub** when you're ready."""
+
+SUB_SETUP_CANCELLED_TITLE = "Sub Profile Setup"
+SUB_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
+
+Run **/sub** anytime to start again."""
