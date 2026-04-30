@@ -1064,52 +1064,55 @@ class VerificationCog(commands.Cog):
             await ctx.reply("This command can only be used in a server channel.", mention_author=False)
             return
 
-        domme_role = ctx.guild.get_role(self.config.domme_role_id)
-        if domme_role is None:
-            await ctx.reply("I couldn't find the configured Domme role.", mention_author=False)
-            return
-
-        if domme_role not in ctx.author.roles:
-            await ctx.reply("Only members with the Domme role can use this command.", mention_author=False)
-            return
-
-        profile = await self.database.get_domme_profile(user_id=ctx.author.id)
-        requested_action = (action or "").strip().lower()
-
-        if requested_action == "delete":
-            if profile is None:
-                await ctx.reply("You do not have a saved Domme profile to delete.", mention_author=False)
-                return
-
-            view = DommeDeleteConfirmView(self.domme_service, ctx.author.id)
-            reply = await ctx.reply(
-                "Are you sure you want to delete your Domme profile?",
-                view=view,
-                mention_author=False,
-            )
+        content, embed, view = await self._build_domme_response(
+            member=ctx.author,
+            guild=ctx.guild,
+            action=action,
+        )
+        reply = await ctx.reply(
+            content=content,
+            embed=embed,
+            view=view,
+            mention_author=False,
+        )
+        if view is not None:
             view.message = reply
-            return
 
-        if profile is not None:
-            await ctx.reply(
-                embed=embeds.domme_profile_embed(profile, ctx.author),
-                mention_author=False,
+    @app_commands.command(
+        name="domme",
+        description="Starts your Domme profile setup or shows your saved profile.",
+    )
+    @app_commands.describe(action="Choose delete to remove your saved Domme profile.")
+    @app_commands.choices(
+        action=[
+            app_commands.Choice(name="Delete profile", value="delete"),
+        ]
+    )
+    async def domme_slash(
+        self,
+        interaction: discord.Interaction,
+        action: app_commands.Choice[str] | None = None,
+    ) -> None:
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message(
+                "This command can only be used in a server channel.",
+                ephemeral=True,
             )
             return
 
-        if ctx.author.id in self.domme_service.sessions:
-            await ctx.reply(
-                "You already have a Domme profile setup in progress. Please check your DMs.",
-                mention_author=False,
-            )
-            return
-
-        started = await self.domme_service.start_setup(ctx.author)
-        if not started:
-            await ctx.reply(messages.DM_FAILURE_RESPONSE, mention_author=False)
-            return
-
-        await ctx.reply("Hey! Look in your DM’s!", mention_author=False)
+        content, embed, view = await self._build_domme_response(
+            member=interaction.user,
+            guild=interaction.guild,
+            action=action.value if action else None,
+        )
+        await interaction.response.send_message(
+            content=content,
+            embed=embed,
+            view=view,
+            ephemeral=True,
+        )
+        if view is not None:
+            view.message = await interaction.original_response()
 
     @app_commands.command(
         name="help",
@@ -1129,3 +1132,45 @@ class VerificationCog(commands.Cog):
             view=view,
             ephemeral=True,
         )
+
+    async def _build_domme_response(
+        self,
+        *,
+        member: discord.Member,
+        guild: discord.Guild,
+        action: str | None,
+    ) -> tuple[str | None, discord.Embed | None, discord.ui.View | None]:
+        domme_role = guild.get_role(self.config.domme_role_id)
+        if domme_role is None:
+            return "I couldn't find the configured Domme role.", None, None
+
+        if domme_role not in member.roles:
+            return "Only members with the Domme role can use this command.", None, None
+
+        profile = await self.database.get_domme_profile(user_id=member.id)
+        requested_action = (action or "").strip().lower()
+
+        if requested_action == "delete":
+            if profile is None:
+                return "You do not have a saved Domme profile to delete.", None, None
+            return (
+                "Are you sure you want to delete your Domme profile?",
+                None,
+                DommeDeleteConfirmView(self.domme_service, member.id),
+            )
+
+        if profile is not None:
+            return None, embeds.domme_profile_embed(profile, member), None
+
+        if member.id in self.domme_service.sessions:
+            return (
+                "You already have a Domme profile setup in progress. Please check your DMs.",
+                None,
+                None,
+            )
+
+        started = await self.domme_service.start_setup(member)
+        if not started:
+            return messages.DM_FAILURE_RESPONSE, None, None
+
+        return "Hey! Look in your DM’s!", None, None
