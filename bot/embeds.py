@@ -87,6 +87,10 @@ def _payment_lines(
     ]
 
 
+def _has_value(value: str | None) -> bool:
+    return bool(value and value.strip())
+
+
 def welcome_embed(member: discord.Member) -> discord.Embed:
     embed = _styled_embed(
         title=messages.WELCOME_TITLE,
@@ -344,7 +348,8 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             PINK,
             "Domme profile setup and profile management.",
             (
-                ("/domme", "Starts your Domme profile setup or shows your saved profile."),
+                ("/domme", "Shows your Domme profile publicly, or starts setup if you don't have one."),
+                ("/domme user:@Someone", "Shows another member's Domme profile publicly."),
                 ("/domme action:delete", "Deletes your saved Domme profile after confirmation."),
             ),
         ),
@@ -552,54 +557,64 @@ def domme_profile_embed(
     profile: DommeProfile,
     member: discord.Member | discord.User,
 ) -> discord.Embed:
+    display_name = member.display_name if isinstance(member, discord.Member) else member.name
+
+    # Build identity description — only include fields with values
+    identity_parts: list[str] = []
+    if _has_value(profile.honorific):
+        identity_parts.append(f"**Honorific:** {profile.honorific}")
+    if _has_value(profile.name):
+        identity_parts.append(f"**Name:** {profile.name}")
+    if _has_value(profile.pronouns):
+        identity_parts.append(f"**Pronouns:** {profile.pronouns}")
+
     embed = discord.Embed(
-        title=f"{member.display_name if isinstance(member, discord.Member) else member.name}'s Domme Profile",
+        title=f"✦ {display_name}",
+        description="\n".join(identity_parts) if identity_parts else None,
         color=PINK,
     )
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(
-        name="Identity",
-        value=(
-            f"**Name:** {_profile_value(profile.name)}\n"
-            f"**Honorific:** {_profile_value(profile.honorific)}\n"
-            f"**Pronouns:** {_profile_value(profile.pronouns)}"
-        ),
-        inline=False,
-    )
-    embed.add_field(
-        name="Details",
-        value=(
-            f"**Age:** {_profile_value(profile.age)}\n"
-            f"**Tribute Fee Price:** {_profile_value(profile.tribute_price)}"
-        ),
-        inline=False,
-    )
-    _add_chunked_field(
-        embed,
-        name="Payment Methods",
-        lines=_payment_lines(
-            throne=profile.throne,
-            paypal=profile.paypal,
-            youpay=profile.youpay,
-            cashapp=profile.cashapp,
-            venmo=profile.venmo,
-            beemit=profile.beemit,
-            loyalfans=profile.loyalfans,
-            onlyfans=profile.onlyfans,
-        ),
-    )
-    embed.add_field(
-        name="Features",
-        value=(
-            f"**Throne Tracking:** {_feature_value(profile.throne_tracking_enabled)}\n"
-            f"**Coffee Feature:** {_feature_value(profile.coffee_enabled)}"
-        ),
-        inline=False,
-    )
+
+    # Details — only show if at least one is set
+    details_parts: list[str] = []
+    if _has_value(profile.age):
+        details_parts.append(f"**Age:** {profile.age}")
+    if _has_value(profile.tribute_price):
+        details_parts.append(f"**Tribute:** {profile.tribute_price}")
+    if details_parts:
+        embed.add_field(name="Details", value="\n".join(details_parts), inline=False)
+
+    # Payment methods — only show entries that have values
+    payment_entries: list[str] = []
+    payment_map = [
+        ("Throne", profile.throne),
+        ("PayPal", profile.paypal),
+        ("YouPay", profile.youpay),
+        ("Cashapp", profile.cashapp),
+        ("Venmo", profile.venmo),
+        ("Beemit", profile.beemit),
+        ("Loyalfans", profile.loyalfans),
+        ("Onlyfans", profile.onlyfans),
+    ]
+    for label, value in payment_map:
+        if _has_value(value):
+            payment_entries.append(f"**{label}:** {value}")
+    if payment_entries:
+        _add_chunked_field(embed, name="Payment Methods", lines=payment_entries)
+
+    # Features — only show if at least one is enabled
+    feature_parts: list[str] = []
+    if profile.throne_tracking_enabled:
+        feature_parts.append("✓ Throne tracking enabled")
+    if profile.coffee_enabled:
+        feature_parts.append("✓ Coffee-send alerts enabled")
+    if feature_parts:
+        embed.add_field(name="Features", value="\n".join(feature_parts), inline=False)
+
     try:
         created = datetime.fromisoformat(profile.created_at)
         created_label = created.strftime("%m/%d/%Y")
     except ValueError:
         created_label = profile.created_at
-    embed.set_footer(text=f"The Butler • Profile created {created_label}")
+    embed.set_footer(text=f"The Drain Server • Domme Profile • Created {created_label}")
     return embed

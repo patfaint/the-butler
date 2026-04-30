@@ -130,7 +130,9 @@ Prefix commands:
 - `!verify_cleanup`
   Shows users who still have the Unverified role.
 - `!domme`
-  Starts Domme profile setup if no profile exists, or shows the saved profile.
+  Shows your saved Domme profile publicly, or starts profile setup via DM if you don't have one.
+- `!domme @mention`
+  Shows the mentioned member's Domme profile publicly.
 - `!domme delete`
   Deletes the saved Domme profile after confirmation.
 
@@ -141,7 +143,9 @@ Slash commands:
 - `/help`
   Shows the restricted bot help menu.
 - `/domme`
-  Starts Domme profile setup if no profile exists, or shows the saved profile.
+  Shows your saved Domme profile publicly in the channel, or starts profile setup via DM if you don't have one.
+- `/domme user:@Someone`
+  Shows another member's Domme profile publicly in the channel.
 - `/domme action:delete`
   Deletes the saved Domme profile after confirmation.
 
