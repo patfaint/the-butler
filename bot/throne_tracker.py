@@ -18,8 +18,6 @@ import asyncio
 import logging
 import random
 import time
-from typing import Optional
-
 import aiohttp
 import discord
 from discord import app_commands
@@ -73,6 +71,8 @@ class ThroneTrackerCog(commands.Cog):
             self._http = aiohttp.ClientSession()
         return self._http
 
+    # The decorator requires a literal interval; the real value is applied
+    # via change_interval() in __init__ from BotConfig.
     @tasks.loop(seconds=300)
     async def poll_throne_pages(self) -> None:
         try:
@@ -255,7 +255,7 @@ class ThroneTrackerCog(commands.Cog):
     async def throne_refresh(
         self,
         interaction: discord.Interaction,
-        member: Optional[discord.Member] = None,
+        member: discord.Member | None = None,
     ) -> None:
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(

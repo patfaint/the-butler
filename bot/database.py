@@ -140,7 +140,6 @@ class ThroneSend:
 
     @classmethod
     def from_row(cls, row: aiosqlite.Row) -> "ThroneSend":
-        keys = row.keys() if hasattr(row, "keys") else []
         return cls(
             id=row["id"],
             domme_user_id=row["domme_user_id"],
@@ -151,9 +150,9 @@ class ThroneSend:
             item_image_url=row["item_image_url"],
             logged_by=row["logged_by"],
             sent_at=row["sent_at"],
-            external_id=row["external_id"] if "external_id" in keys else None,
-            is_private=bool(row["is_private"]) if "is_private" in keys and row["is_private"] is not None else False,
-            seeded=bool(row["seeded"]) if "seeded" in keys and row["seeded"] is not None else False,
+            external_id=row["external_id"],
+            is_private=bool(row["is_private"]),
+            seeded=bool(row["seeded"]),
         )
 
 
