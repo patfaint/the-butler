@@ -1192,18 +1192,42 @@ class SubProfileService:
         session.owned_by_domme_user_id = profile.owned_by_domme_user_id
         return session
 
-    async def start_setup(self, user: discord.User, interaction: discord.Interaction) -> None:
-        """Start (or resume) setup from a slash-command interaction (DM or server)."""
+    async def start_setup_via_server(self, member: discord.Member) -> bool:
+        """Start setup by sending a DM (server-triggered flow)."""
+        existing = await self.database.get_sub_profile(user_id=member.id)
+        session = (
+            self._make_session_from_profile(existing)
+            if existing
+            else SubProfileSession(user_id=member.id)
+        )
+        view = SubSetupIntroView(self, session)
+        try:
+            session.message = await member.send(
+                embed=embeds.sub_setup_intro_embed(),
+                view=view,
+            )
+        except (discord.Forbidden, discord.HTTPException):
+            return False
+        session.current_view = view
+        self.sessions[member.id] = session
+        return True
+
+    async def start_setup_in_dm(
+        self,
+        user: discord.User,
+        interaction: discord.Interaction,
+    ) -> None:
+        """Start (or resume) setup when the user runs /sub inside a DM."""
         existing = await self.database.get_sub_profile(user_id=user.id)
-        if existing:
-            session = self._make_session_from_profile(existing)
-        else:
-            session = SubProfileSession(user_id=user.id)
+        session = (
+            self._make_session_from_profile(existing)
+            if existing
+            else SubProfileSession(user_id=user.id)
+        )
         view = SubSetupIntroView(self, session)
         await interaction.response.send_message(
             embed=embeds.sub_setup_intro_embed(),
             view=view,
-            ephemeral=True,
         )
         session.message = await interaction.original_response()
         session.current_view = view
@@ -1635,42 +1659,61 @@ class VerificationCog(commands.Cog):
         interaction: discord.Interaction,
         action: app_commands.Choice[str] | None = None,
     ) -> None:
-        # Check guild membership (works from DM too)
-        guild = interaction.guild or self.bot.get_guild(self.config.guild_id)
-        if guild is None:
-            await interaction.response.send_message(
-                "I couldn't find the configured server.",
-                ephemeral=True,
-            )
-            return
-        member = guild.get_member(interaction.user.id)
-        if member is None:
-            try:
-                member = await guild.fetch_member(interaction.user.id)
-            except discord.NotFound:
-                member = None
-            except (discord.Forbidden, discord.HTTPException):
+        # DM context — start edit flow directly in DM
+        if interaction.guild is None:
+            guild = self.bot.get_guild(self.config.guild_id)
+            if guild is None:
                 await interaction.response.send_message(
-                    "I couldn't verify your server membership right now. Please try again in a moment.",
+                    "I couldn't find the configured server.",
                     ephemeral=True,
                 )
                 return
-        if member is None:
+            member = guild.get_member(interaction.user.id)
+            if member is None:
+                try:
+                    member = await guild.fetch_member(interaction.user.id)
+                except discord.NotFound:
+                    member = None
+                except (discord.Forbidden, discord.HTTPException):
+                    await interaction.response.send_message(
+                        "I couldn't verify your server membership right now. Please try again in a moment.",
+                        ephemeral=True,
+                    )
+                    return
+            if member is None:
+                await interaction.response.send_message(
+                    "You must be a member of the server to use this command.",
+                    ephemeral=True,
+                )
+                return
+            if interaction.user.id in self.sub_service.sessions:
+                await interaction.response.send_message(
+                    "You already have a setup in progress — scroll up to find it.",
+                    ephemeral=True,
+                )
+                return
+            await self.sub_service.start_setup_in_dm(interaction.user, interaction)
+            return
+
+        # Server context
+        if not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(
-                "You must be a member of the server to use this command.",
+                "This command can only be used in a server channel or DM.",
                 ephemeral=True,
             )
             return
 
+        member = interaction.user
+
         if action and action.value == "delete":
-            profile = await self.database.get_sub_profile(user_id=interaction.user.id)
+            profile = await self.database.get_sub_profile(user_id=member.id)
             if profile is None:
                 await interaction.response.send_message(
                     "You don't have a saved sub profile to delete.",
                     ephemeral=True,
                 )
                 return
-            view = SubDeleteConfirmView(self.sub_service, interaction.user.id)
+            view = SubDeleteConfirmView(self.sub_service, member.id)
             await interaction.response.send_message(
                 "Are you sure you want to delete your sub profile?",
                 view=view,
@@ -1679,34 +1722,54 @@ class VerificationCog(commands.Cog):
             view.message = await interaction.original_response()
             return
 
-        # edit action or no action — start setup if explicitly editing or no profile yet
+        # edit action — send setup to DM
         if action and action.value == "edit":
-            if interaction.user.id in self.sub_service.sessions:
+            if member.id in self.sub_service.sessions:
                 await interaction.response.send_message(
-                    "You already have a setup in progress — scroll up to find it.",
+                    "You already have a setup in progress — check your DMs to continue.",
                     ephemeral=True,
                 )
                 return
-            await self.sub_service.start_setup(interaction.user, interaction)
-            return
-
-        # No action specified — show existing profile or start setup
-        profile = await self.database.get_sub_profile(user_id=interaction.user.id)
-        if profile is not None:
-            is_verified = self._is_verified(member)
-            rank = await self.database.get_sub_leaderboard_rank(user_id=interaction.user.id)
-            embed = embeds.sub_profile_embed(profile, member, is_verified=is_verified, rank=rank)
-            await interaction.response.send_message(embed=embed)
-            return
-
-        if interaction.user.id in self.sub_service.sessions:
+            started = await self.sub_service.start_setup_via_server(member)
+            if not started:
+                await interaction.response.send_message(
+                    messages.DM_FAILURE_RESPONSE,
+                    ephemeral=True,
+                )
+                return
             await interaction.response.send_message(
-                "You already have a setup in progress — scroll up to find it.",
+                "I've sent you a DM to edit your sub profile.",
                 ephemeral=True,
             )
             return
 
-        await self.sub_service.start_setup(interaction.user, interaction)
+        # No action specified — show existing profile or start setup via DM
+        profile = await self.database.get_sub_profile(user_id=member.id)
+        if profile is not None:
+            is_verified = self._is_verified(member)
+            rank = await self.database.get_sub_leaderboard_rank(user_id=member.id)
+            embed = embeds.sub_profile_embed(profile, member, is_verified=is_verified, rank=rank)
+            await interaction.response.send_message(embed=embed)
+            return
+
+        if member.id in self.sub_service.sessions:
+            await interaction.response.send_message(
+                "You already have a setup in progress — check your DMs to continue.",
+                ephemeral=True,
+            )
+            return
+
+        started = await self.sub_service.start_setup_via_server(member)
+        if not started:
+            await interaction.response.send_message(
+                messages.DM_FAILURE_RESPONSE,
+                ephemeral=True,
+            )
+            return
+        await interaction.response.send_message(
+            "I've sent you a DM to set up your sub profile.",
+            ephemeral=True,
+        )
 
     @app_commands.command(
         name="help",
