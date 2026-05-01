@@ -9,6 +9,7 @@ from discord.ext import commands
 
 from bot.config import BotConfig, load_config
 from bot.database import Database
+from bot.throne_tracker import ThroneTrackerCog
 from bot.verification import VerificationCog
 
 
@@ -39,6 +40,8 @@ class ButlerBot(commands.Bot):
         verification_cog = VerificationCog(self, self.config, self.database)
         await self.add_cog(verification_cog)
         await verification_cog.service.restore_persistent_views()
+
+        await self.add_cog(ThroneTrackerCog(self, self.config, self.database))
 
         if self.config.guild_id:
             guild = discord.Object(id=self.config.guild_id)

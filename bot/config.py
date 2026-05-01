@@ -27,6 +27,38 @@ class BotConfig:
     leaderboard_channel_id: int
     send_track_channel_id: int
     database_path: Path
+    throne_poll_interval_seconds: int
+    throne_poll_per_domme_delay_seconds: float
+    throne_http_timeout_seconds: float
+    throne_user_agent: str
+
+
+_DEFAULT_THRONE_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36 TheButlerBot/1.0"
+)
+
+
+def _env_int(name: str, default: int, *, minimum: int = 0) -> int:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        return default
+    return max(minimum, value)
+
+
+def _env_float(name: str, default: float, *, minimum: float = 0.0) -> float:
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError:
+        return default
+    return max(minimum, value)
 
 
 def load_config() -> BotConfig:
@@ -53,4 +85,12 @@ def load_config() -> BotConfig:
         leaderboard_channel_id=channels.LEADERBOARD_CHANNEL_ID,
         send_track_channel_id=channels.SEND_TRACK_CHANNEL_ID,
         database_path=Path(os.getenv("DATABASE_PATH", "/opt/the-butler/data/the_butler.sqlite3")),
+        throne_poll_interval_seconds=_env_int("THRONE_POLL_INTERVAL_SECONDS", 300, minimum=30),
+        throne_poll_per_domme_delay_seconds=_env_float(
+            "THRONE_POLL_PER_DOMME_DELAY_SECONDS", 3.0, minimum=0.0
+        ),
+        throne_http_timeout_seconds=_env_float(
+            "THRONE_HTTP_TIMEOUT_SECONDS", 10.0, minimum=1.0
+        ),
+        throne_user_agent=os.getenv("THRONE_USER_AGENT") or _DEFAULT_THRONE_USER_AGENT,
     )

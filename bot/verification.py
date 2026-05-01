@@ -1795,19 +1795,28 @@ class VerificationCog(commands.Cog):
 
     @app_commands.command(
         name="help",
-        description="Shows the restricted bot help menu.",
+        description="Shows commands available to you, based on your roles.",
     )
     async def help(self, interaction: discord.Interaction) -> None:
-        if interaction.user.id not in messages.HELP_ALLOWED_USER_IDS:
-            await interaction.response.send_message(
-                messages.UNAUTHORISED_HELP_RESPONSE,
-                ephemeral=True,
-            )
-            return
+        is_domme = False
+        is_sub = False
+        is_moderator = False
+        if isinstance(interaction.user, discord.Member):
+            member = interaction.user
+            is_moderator = has_admin_command_permissions(member, self.config)
+            if self.config.domme_role_id:
+                is_domme = any(role.id == self.config.domme_role_id for role in member.roles)
+            if self.config.submissive_role_id:
+                is_sub = any(role.id == self.config.submissive_role_id for role in member.roles)
 
-        view = HelpView(interaction.user.id)
+        pages = embeds.build_help_pages(
+            is_domme=is_domme,
+            is_sub=is_sub,
+            is_moderator=is_moderator,
+        )
+        view = HelpView(interaction.user.id, pages=pages)
         await interaction.response.send_message(
-            embed=embeds.help_page_embed(view.current_page, view.total_pages),
+            embed=embeds.help_page_embed(view.current_page, view.total_pages, pages),
             view=view,
             ephemeral=True,
         )
