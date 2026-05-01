@@ -40,8 +40,12 @@ from bot.views import (
     RoleSelectionView,
     StaffReviewView,
     SubDeleteConfirmView,
+    SubSetupColorView,
+    SubSetupDetailsView,
     SubSetupIntroView,
+    SubSetupKinksLimitsView,
     SubSetupNameView,
+    SubSetupOwnerView,
     SubSetupReviewView,
     VerificationPanelView,
 )
@@ -71,6 +75,8 @@ class DommeProfileSession:
     content_link4: str | None = None
     profile_color: int = 16737714  # default: pink
     throne_tracking_enabled: bool = False
+    kinks: str | None = None
+    limits: str | None = None
 
 
 @dataclass
@@ -79,6 +85,13 @@ class SubProfileSession:
     message: discord.Message | None = None
     current_view: discord.ui.View | None = None
     throne_name: str | None = None
+    name: str | None = None
+    pronouns: str | None = None
+    age: str | None = None
+    profile_color: int = 2762042  # default: soft dark
+    kinks: str | None = None
+    limits: str | None = None
+    owned_by_domme_user_id: int | None = None
 
 
 class VerificationService:
@@ -847,6 +860,8 @@ class DommeProfileService:
         session.content_link4 = profile.content_link4
         session.profile_color = profile.profile_color
         session.throne_tracking_enabled = profile.throne_tracking_enabled
+        session.kinks = profile.kinks
+        session.limits = profile.limits
         return session
 
     async def start_setup(self, member: discord.Member) -> bool:
@@ -917,6 +932,8 @@ class DommeProfileService:
                 pronouns=session.pronouns,
                 age=session.age,
                 tribute_price=session.tribute_price,
+                kinks=session.kinks,
+                limits=session.limits,
             ),
             view=DommeSetupDetailsView(self, session),
         )
@@ -1012,6 +1029,8 @@ class DommeProfileService:
                 content_link4=session.content_link4,
                 profile_color=session.profile_color,
                 throne_tracking_enabled=session.throne_tracking_enabled,
+                kinks=session.kinks,
+                limits=session.limits,
             ),
             view=DommeSetupReviewView(self, session),
         )
@@ -1040,6 +1059,8 @@ class DommeProfileService:
             content_link4=session.content_link4,
             profile_color=session.profile_color,
             throne_tracking_enabled=session.throne_tracking_enabled,
+            kinks=session.kinks,
+            limits=session.limits,
         )
         self.finish_session(session.user_id)
         await self._update_session_message(
@@ -1157,12 +1178,24 @@ class SubProfileService:
     def build_cancelled_embed(self) -> discord.Embed:
         return embeds.sub_setup_cancelled_embed()
 
+    def _make_session_from_profile(self, profile: "SubProfile") -> SubProfileSession:
+        """Pre-populate a session from an existing saved sub profile."""
+        from bot.database import SubProfile
+        session = SubProfileSession(user_id=profile.user_id)
+        session.throne_name = profile.throne_name
+        session.name = profile.name
+        session.pronouns = profile.pronouns
+        session.age = profile.age
+        session.profile_color = profile.profile_color
+        session.kinks = profile.kinks
+        session.limits = profile.limits
+        session.owned_by_domme_user_id = profile.owned_by_domme_user_id
+        return session
+
     async def start_setup(self, user: discord.User, interaction: discord.Interaction) -> None:
         """Start (or resume) setup from a slash-command interaction (DM or server)."""
         existing = await self.database.get_sub_profile(user_id=user.id)
-        session = SubProfileSession(user_id=user.id)
-        if existing:
-            session.throne_name = existing.throne_name
+        session = self._make_session_from_profile(existing) if existing else SubProfileSession(user_id=user.id)
         view = SubSetupIntroView(self, session)
         await interaction.response.send_message(
             embed=embeds.sub_setup_intro_embed(),
@@ -1185,7 +1218,7 @@ class SubProfileService:
             view=SubSetupNameView(self, session),
         )
 
-    async def show_review_step(
+    async def show_details_step(
         self,
         session: SubProfileSession,
         interaction: discord.Interaction,
@@ -1193,7 +1226,120 @@ class SubProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.sub_setup_review_embed(throne_name=session.throne_name),
+            embed=embeds.sub_setup_details_embed(
+                name=session.name,
+                pronouns=session.pronouns,
+                age=session.age,
+            ),
+            view=SubSetupDetailsView(self, session),
+        )
+
+    async def show_kinks_limits_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_kinks_limits_embed(
+                kinks=session.kinks,
+                limits=session.limits,
+            ),
+            view=SubSetupKinksLimitsView(self, session),
+        )
+
+    async def show_color_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_color_embed(profile_color=session.profile_color),
+            view=SubSetupColorView(self, session),
+        )
+
+    async def show_owner_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        options = await self._build_owner_options(session)
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_owner_embed(
+                owned_by_label=self._owner_label(session),
+            ),
+            view=SubSetupOwnerView(self, session, options),
+        )
+
+    async def refresh_owner_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+        options: list[discord.SelectOption],
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_owner_embed(
+                owned_by_label=self._owner_label(session),
+            ),
+            view=SubSetupOwnerView(self, session, options),
+        )
+
+    def _owner_label(self, session: SubProfileSession) -> str:
+        if session.owned_by_domme_user_id:
+            guild = self.bot.get_guild(self.config.guild_id)
+            if guild:
+                member = guild.get_member(session.owned_by_domme_user_id)
+                if member:
+                    return member.display_name
+            return f"<@{session.owned_by_domme_user_id}>"
+        return "None"
+
+    async def _build_owner_options(self, session: SubProfileSession) -> list[discord.SelectOption]:
+        options: list[discord.SelectOption] = [
+            discord.SelectOption(label="None — I'm not owned", value="none"),
+        ]
+        guild = self.bot.get_guild(self.config.guild_id)
+        domme_profiles = await self.database.get_all_domme_profiles()
+        for profile in domme_profiles[:24]:  # Discord max 25 options (1 reserved for None)
+            member = guild.get_member(profile.user_id) if guild else None
+            display = member.display_name if member else f"User {profile.user_id}"
+            if profile.name:
+                display = f"{profile.name} ({display})"
+            options.append(
+                discord.SelectOption(
+                    label=display[:100],
+                    value=str(profile.user_id),
+                    default=(session.owned_by_domme_user_id == profile.user_id),
+                )
+            )
+        return options
+
+    async def show_review_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        owned_by_label = self._owner_label(session)
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_review_embed(
+                throne_name=session.throne_name,
+                name=session.name,
+                pronouns=session.pronouns,
+                age=session.age,
+                profile_color=session.profile_color,
+                kinks=session.kinks,
+                limits=session.limits,
+                owned_by_label=owned_by_label,
+            ),
             view=SubSetupReviewView(self, session),
         )
 
@@ -1205,6 +1351,13 @@ class SubProfileService:
         await self.database.save_sub_profile(
             user_id=session.user_id,
             throne_name=session.throne_name,
+            name=session.name,
+            pronouns=session.pronouns,
+            age=session.age,
+            profile_color=session.profile_color,
+            kinks=session.kinks,
+            limits=session.limits,
+            owned_by_domme_user_id=session.owned_by_domme_user_id,
         )
         self.finish_session(session.user_id)
         await self._update_session_message(
@@ -1386,12 +1539,13 @@ class VerificationCog(commands.Cog):
         description="Shows your Domme profile, starts setup, or edits your profile in DMs.",
     )
     @app_commands.describe(
-        action="Choose delete to remove your saved Domme profile.",
-        user="View another member's Domme profile.",
+        action="What to do: delete your profile, or show a leaderboard.",
+        user="View another member's Domme profile or their leaderboard.",
     )
     @app_commands.choices(
         action=[
             app_commands.Choice(name="Delete profile", value="delete"),
+            app_commands.Choice(name="Show leaderboard", value="leaderboard"),
         ]
     )
     async def domme_slash(
@@ -1464,11 +1618,12 @@ class VerificationCog(commands.Cog):
 
     @app_commands.command(
         name="sub",
-        description="Link your Throne sending name to your Discord for automatic send tracking.",
+        description="View or set up your sub profile. Works in DMs too.",
     )
-    @app_commands.describe(action="Choose delete to remove your sub profile.")
+    @app_commands.describe(action="Choose edit to update your profile, or delete to remove it.")
     @app_commands.choices(
         action=[
+            app_commands.Choice(name="Edit profile", value="edit"),
             app_commands.Choice(name="Delete profile", value="delete"),
         ]
     )
@@ -1519,6 +1674,26 @@ class VerificationCog(commands.Cog):
                 ephemeral=True,
             )
             view.message = await interaction.original_response()
+            return
+
+        # edit action or no action — start setup if explicitly editing or no profile yet
+        if action and action.value == "edit":
+            if interaction.user.id in self.sub_service.sessions:
+                await interaction.response.send_message(
+                    "You already have a setup in progress — scroll up to find it.",
+                    ephemeral=True,
+                )
+                return
+            await self.sub_service.start_setup(interaction.user, interaction)
+            return
+
+        # No action specified — show existing profile or start setup
+        profile = await self.database.get_sub_profile(user_id=interaction.user.id)
+        if profile is not None:
+            is_verified = self._is_verified(member)
+            rank = await self.database.get_sub_leaderboard_rank(user_id=interaction.user.id)
+            embed = embeds.sub_profile_embed(profile, member, is_verified=is_verified, rank=rank)
+            await interaction.response.send_message(embed=embed)
             return
 
         if interaction.user.id in self.sub_service.sessions:
@@ -1573,6 +1748,20 @@ class VerificationCog(commands.Cog):
         if domme_role not in member.roles:
             return "Only members with the Domme role can use this command.", None, None, False, None
 
+        requested_action = (action or "").strip().lower()
+
+        # Leaderboard action — show a domme's throne leaderboard publicly
+        if requested_action == "leaderboard":
+            target = target_member if target_member and target_member != member else member
+            target_profile = await self.database.get_domme_profile(user_id=target.id)
+            if target_profile is None:
+                name = target.display_name if target != member else "You"
+                suffix = "doesn't have a Domme profile." if target != member else "don't have a Domme profile yet."
+                return f"{name} {suffix}", None, None, False, None
+            sends = await self.database.get_sends_for_domme(domme_user_id=target.id)
+            leaderboard_embed = embeds.domme_send_leaderboard_embed(sends, target)
+            return None, leaderboard_embed, None, True, None
+
         # Viewing another member's profile
         if target_member is not None and target_member != member:
             profile = await self.database.get_domme_profile(user_id=target_member.id)
@@ -1584,7 +1773,6 @@ class VerificationCog(commands.Cog):
             return None, embed, view, True, None
 
         profile = await self.database.get_domme_profile(user_id=member.id)
-        requested_action = (action or "").strip().lower()
 
         if requested_action == "delete":
             if profile is None:
