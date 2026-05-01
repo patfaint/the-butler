@@ -25,6 +25,7 @@ class BotConfig:
     submissive_role_id: int
     moderation_role_id: int
     leaderboard_channel_id: int
+    send_track_channel_id: int
     database_path: Path
 
 
@@ -50,5 +51,6 @@ def load_config() -> BotConfig:
         submissive_role_id=channels.SUBMISSIVE_ROLE_ID,
         moderation_role_id=channels.MODERATION_ROLE_ID,
         leaderboard_channel_id=channels.LEADERBOARD_CHANNEL_ID,
-        database_path=Path(os.getenv("DATABASE_PATH", "data/the_butler.sqlite3")),
+        send_track_channel_id=channels.SEND_TRACK_CHANNEL_ID,
+        database_path=Path(os.getenv("DATABASE_PATH", "/opt/the-butler/data/the_butler.sqlite3")),
     )

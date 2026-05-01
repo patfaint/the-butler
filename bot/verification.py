@@ -905,9 +905,19 @@ class DommeProfileService:
         session.current_view = view
         self.sessions[user.id] = session
 
-    async def show_name_step(
+    async def show_intro_step(
         self,
         session: DommeProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.domme_setup_intro_embed(),
+            view=DommeSetupIntroView(self, session),
+        )
+
+    async def show_name_step(
         interaction: discord.Interaction,
     ) -> None:
         await self._update_session_message(
@@ -1232,6 +1242,18 @@ class SubProfileService:
         session.message = await interaction.original_response()
         session.current_view = view
         self.sessions[user.id] = session
+
+    async def show_intro_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        await self._update_session_message(
+            session,
+            interaction=interaction,
+            embed=embeds.sub_setup_intro_embed(),
+            view=SubSetupIntroView(self, session),
+        )
 
     async def show_name_step(
         self,
