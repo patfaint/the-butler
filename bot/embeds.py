@@ -313,53 +313,94 @@ def verification_cleanup_embed(
     return embed
 
 
-def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
-    pages = (
+def build_help_pages(
+    *,
+    is_domme: bool,
+    is_sub: bool,
+    is_moderator: bool,
+) -> list[tuple[str, int, str, tuple[tuple[str, str], ...]]]:
+    """Return the help pages relevant to a member's roles.
+
+    Each page is ``(section, color, blurb, entries)``. The "General" page is
+    always included. Mods see Verification / Moderation / System. Dommes see
+    the Domme Profiles page. Subs see the Sub Profiles page. Members with no
+    matching role only see General.
+    """
+    general_page = (
+        "General",
+        PINK,
+        "Everyone can use these commands.",
         (
-            "Verification",
-            PINK,
-            "Verification commands and panel setup.",
-            (
-                ("!setup_verification", "Posts the verification panel in the configured verification channel."),
-                ("!verify_status <user>", "Checks a user's verification status."),
-            ),
-        ),
-        (
-            "Moderation",
-            PURPLE,
-            "Moderation tools for the verification queue.",
-            (
-                ("!verify_cleanup", "Shows users who still have the Unverified role."),
-            ),
-        ),
-        (
-            "System",
-            SOFT_DARK,
-            "Restricted system controls and reference tools.",
-            (
-                ("/help", "Shows the restricted bot help menu."),
-            ),
-        ),
-        (
-            "Domme Profiles",
-            PINK,
-            "Domme profile setup and management.",
-            (
-                ("/domme", "Shows your Domme profile publicly, or starts setup if you don't have one. Works in DMs too."),
-                ("/domme user:@Someone", "Shows another member's Domme profile publicly."),
-                ("/domme action:delete", "Deletes your saved Domme profile after confirmation."),
-            ),
-        ),
-        (
-            "Sub Profiles",
-            SOFT_DARK,
-            "Sub profile setup for Throne leaderboard tracking.",
-            (
-                ("/sub", "Link your Throne sending name to your Discord for automatic send tracking."),
-                ("/sub action:delete", "Deletes your saved sub profile."),
-            ),
+            ("/help", "Shows this help menu, tailored to your roles."),
         ),
     )
+    domme_page = (
+        "Domme Profiles",
+        PINK,
+        "Domme profile setup and management.",
+        (
+            ("/domme", "Shows your Domme profile publicly, or starts setup if you don't have one. Works in DMs too."),
+            ("/domme user:@Someone", "Shows another member's Domme profile publicly."),
+            ("/domme action:leaderboard", "Shows your Throne send leaderboard publicly."),
+            ("/domme action:delete", "Deletes your saved Domme profile after confirmation."),
+        ),
+    )
+    sub_page = (
+        "Sub Profiles",
+        SOFT_DARK,
+        "Sub profile setup for Throne leaderboard tracking.",
+        (
+            ("/sub", "Link your Throne sending name to your Discord for automatic send tracking."),
+            ("/sub action:delete", "Deletes your saved sub profile."),
+        ),
+    )
+    verification_page = (
+        "Verification",
+        PINK,
+        "Verification commands and panel setup.",
+        (
+            ("!setup_verification", "Posts the verification panel in the configured verification channel."),
+            ("!verify_status <user>", "Checks a user's verification status."),
+        ),
+    )
+    moderation_page = (
+        "Moderation",
+        PURPLE,
+        "Moderation tools for the verification queue and Throne tracker.",
+        (
+            ("!verify_cleanup", "Shows users who still have the Unverified role."),
+            ("/throne_refresh", "Force an immediate Throne poll, optionally for a single Domme."),
+        ),
+    )
+    system_page = (
+        "System",
+        SOFT_DARK,
+        "Restricted system controls and reference tools.",
+        (
+            ("/help", "Shows this help menu."),
+        ),
+    )
+
+    pages: list[tuple[str, int, str, tuple[tuple[str, str], ...]]] = [general_page]
+    if is_domme:
+        pages.append(domme_page)
+    if is_sub:
+        pages.append(sub_page)
+    if is_moderator:
+        pages.extend([verification_page, moderation_page, system_page])
+    return pages
+
+
+def help_page_embed(
+    page_index: int,
+    total_pages: int,
+    pages: list[tuple[str, int, str, tuple[tuple[str, str], ...]]] | None = None,
+) -> discord.Embed:
+    if pages is None:
+        # Fallback: show a generic page list when called without a roles context.
+        pages = build_help_pages(is_domme=True, is_sub=True, is_moderator=True)
+    # Clamp the page index defensively in case the caller passes a stale value.
+    page_index = max(0, min(page_index, len(pages) - 1))
     section, color, blurb, entries = pages[page_index]
     embed = discord.Embed(
         title="The Butler Command Guide",

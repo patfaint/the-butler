@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import discord
 
 from bot import messages
-from bot.embeds import PROFILE_COLOR_PRESETS, help_page_embed
+from bot.embeds import PROFILE_COLOR_PRESETS, build_help_pages, help_page_embed
 
 if TYPE_CHECKING:
     from bot.verification import DommeProfileSession, DommeProfileService, SubProfileService, SubProfileSession, VerificationService
@@ -162,11 +162,16 @@ class FormLinkView(discord.ui.View):
 
 
 class HelpView(discord.ui.View):
-    def __init__(self, user_id: int) -> None:
+    def __init__(
+        self,
+        user_id: int,
+        pages: list[tuple[str, int, str, tuple[tuple[str, str], ...]]] | None = None,
+    ) -> None:
         super().__init__(timeout=180)
         self.user_id = user_id
+        self.pages = pages if pages is not None else []
         self.current_page = 0
-        self.total_pages = 4
+        self.total_pages = max(1, len(self.pages))
 
         self.previous_button = discord.ui.Button(
             label="<",
@@ -177,7 +182,7 @@ class HelpView(discord.ui.View):
         self.add_item(self.previous_button)
 
         self.page_button = discord.ui.Button(
-            label="Page 1/4",
+            label=f"Page 1/{self.total_pages}",
             style=discord.ButtonStyle.secondary,
             disabled=True,
         )
@@ -201,10 +206,10 @@ class HelpView(discord.ui.View):
         self._sync_buttons()
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
-        if interaction.user.id == self.user_id and interaction.user.id in messages.HELP_ALLOWED_USER_IDS:
+        if interaction.user.id == self.user_id:
             return True
         await interaction.response.send_message(
-            messages.UNAUTHORISED_HELP_RESPONSE,
+            "Only the user who opened this help menu can navigate it.",
             ephemeral=True,
         )
         return False
@@ -229,13 +234,13 @@ class HelpView(discord.ui.View):
     async def _update(self, interaction: discord.Interaction) -> None:
         self._sync_buttons()
         await interaction.response.edit_message(
-            embed=help_page_embed(self.current_page, self.total_pages),
+            embed=help_page_embed(self.current_page, self.total_pages, self.pages),
             view=self,
         )
 
     def _sync_buttons(self) -> None:
         self.previous_button.disabled = self.current_page == 0
-        self.next_button.disabled = self.current_page == self.total_pages - 1
+        self.next_button.disabled = self.current_page >= self.total_pages - 1
         self.page_button.label = f"Page {self.current_page + 1}/{self.total_pages}"
 
 
