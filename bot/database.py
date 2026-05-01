@@ -134,9 +134,13 @@ class ThroneSend:
     item_image_url: str | None
     logged_by: int
     sent_at: str
+    external_id: str | None = None
+    is_private: bool = False
+    seeded: bool = False
 
     @classmethod
     def from_row(cls, row: aiosqlite.Row) -> "ThroneSend":
+        keys = row.keys() if hasattr(row, "keys") else []
         return cls(
             id=row["id"],
             domme_user_id=row["domme_user_id"],
@@ -147,6 +151,9 @@ class ThroneSend:
             item_image_url=row["item_image_url"],
             logged_by=row["logged_by"],
             sent_at=row["sent_at"],
+            external_id=row["external_id"] if "external_id" in keys else None,
+            is_private=bool(row["is_private"]) if "is_private" in keys and row["is_private"] is not None else False,
+            seeded=bool(row["seeded"]) if "seeded" in keys and row["seeded"] is not None else False,
         )
 
 
@@ -270,6 +277,7 @@ class Database:
         await self.connection.commit()
         await self._migrate_domme_profiles()
         await self._migrate_sub_profiles()
+        await self._migrate_throne_sends()
         await self._claim_sends_with_matching_sub_profiles()
 
     async def close(self) -> None:
@@ -482,6 +490,28 @@ class Database:
                 await self.connection.execute(
                     f"ALTER TABLE sub_profiles ADD COLUMN {col} {col_type}"
                 )
+        await self.connection.commit()
+
+    async def _migrate_throne_sends(self) -> None:
+        """Add new columns to throne_sends if they don't exist yet (schema migration)."""
+        async with self.connection.execute("PRAGMA table_info(throne_sends)") as cursor:
+            columns = {row["name"] for row in await cursor.fetchall()}
+        new_columns: dict[str, str] = {
+            "external_id": "TEXT",
+            "is_private": "INTEGER NOT NULL DEFAULT 0",
+            "seeded": "INTEGER NOT NULL DEFAULT 0",
+        }
+        for col, col_type in new_columns.items():
+            if col not in columns:
+                await self.connection.execute(
+                    f"ALTER TABLE throne_sends ADD COLUMN {col} {col_type}"
+                )
+        # Unique index on external_id (NULL values are not considered equal in SQLite,
+        # so manual sends without an external_id are unaffected).
+        await self.connection.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_throne_sends_external_id "
+            "ON throne_sends(external_id) WHERE external_id IS NOT NULL"
+        )
         await self.connection.commit()
 
     async def _claim_sends_with_matching_sub_profiles(self) -> None:
@@ -715,7 +745,26 @@ class Database:
         item_name: str | None,
         item_image_url: str | None,
         logged_by: int,
-    ) -> int:
+        external_id: str | None = None,
+        is_private: bool = False,
+        seeded: bool = False,
+        sent_at: str | None = None,
+    ) -> int | None:
+        """Insert a Throne send.
+
+        If ``external_id`` is provided and a row with that external_id already
+        exists, no insert is performed and ``None`` is returned. Otherwise the
+        new row id is returned.
+        """
+        if external_id:
+            async with self.connection.execute(
+                "SELECT id FROM throne_sends WHERE external_id = ?",
+                (external_id,),
+            ) as cursor:
+                existing = await cursor.fetchone()
+            if existing is not None:
+                return None
+
         claimed_sub_user_id: int | None = None
         if sub_throne_name:
             sub = await self.get_sub_profile_by_throne_name(throne_name=sub_throne_name)
@@ -731,9 +780,12 @@ class Database:
                 item_name,
                 item_image_url,
                 logged_by,
-                sent_at
+                sent_at,
+                external_id,
+                is_private,
+                seeded
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 domme_user_id,
@@ -743,12 +795,45 @@ class Database:
                 item_name,
                 item_image_url,
                 logged_by,
-                _utc_now(),
+                sent_at or _utc_now(),
+                external_id,
+                int(bool(is_private)),
+                int(bool(seeded)),
             ),
         ) as cursor:
             send_id = int(cursor.lastrowid)
         await self.connection.commit()
         return send_id
+
+    async def get_send(self, *, send_id: int) -> ThroneSend | None:
+        async with self.connection.execute(
+            "SELECT * FROM throne_sends WHERE id = ?",
+            (send_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return ThroneSend.from_row(row)
+
+    async def get_known_external_ids_for_domme(
+        self, *, domme_user_id: int
+    ) -> set[str]:
+        async with self.connection.execute(
+            """
+            SELECT external_id FROM throne_sends
+            WHERE domme_user_id = ? AND external_id IS NOT NULL
+            """,
+            (domme_user_id,),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return {row["external_id"] for row in rows}
+
+    async def has_any_sends_for_domme(self, *, domme_user_id: int) -> bool:
+        async with self.connection.execute(
+            "SELECT 1 FROM throne_sends WHERE domme_user_id = ? LIMIT 1",
+            (domme_user_id,),
+        ) as cursor:
+            return await cursor.fetchone() is not None
 
     async def get_sends_for_domme(self, *, domme_user_id: int) -> list[ThroneSend]:
         async with self.connection.execute(

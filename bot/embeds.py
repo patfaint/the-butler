@@ -782,7 +782,11 @@ def throne_send_log_embed(
     )
     embed.add_field(name="Domme", value=domme_label, inline=True)
     embed.add_field(name="From", value=sub_label, inline=True)
-    embed.add_field(name="Amount", value=f"**${send.amount_usd:,.2f}**", inline=True)
+    if send.is_private:
+        amount_value = "*Private*"
+    else:
+        amount_value = f"**${send.amount_usd:,.2f}**"
+    embed.add_field(name="Amount", value=amount_value, inline=True)
     if send.item_name:
         embed.add_field(name="Item", value=send.item_name, inline=False)
     if send.item_image_url:
