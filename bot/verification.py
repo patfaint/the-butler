@@ -1464,7 +1464,7 @@ class VerificationCog(commands.Cog):
 
     @app_commands.command(
         name="sub",
-        description="Create or edit your sub profile to link your Throne name to your Discord.",
+        description="Link your Throne sending name to your Discord for automatic send tracking.",
     )
     @app_commands.describe(action="Choose delete to remove your sub profile.")
     @app_commands.choices(
@@ -1529,79 +1529,6 @@ class VerificationCog(commands.Cog):
             return
 
         await self.sub_service.start_setup(interaction.user, interaction)
-
-    @app_commands.command(
-        name="log_send",
-        description="[Mod] Log a Throne send received by a Domme.",
-    )
-    @app_commands.describe(
-        domme="The Domme who received the send.",
-        sub_throne_name="The sender's Throne name (leave blank if anonymous).",
-        amount="Amount in USD (e.g. 25.00).",
-        item_name="Name of the item purchased (optional).",
-        item_image_url="Image URL of the item (optional).",
-    )
-    async def log_send_slash(
-        self,
-        interaction: discord.Interaction,
-        domme: discord.Member,
-        amount: app_commands.Range[float, 0.01, None],
-        sub_throne_name: str | None = None,
-        item_name: str | None = None,
-        item_image_url: str | None = None,
-    ) -> None:
-        if (
-            not isinstance(interaction.user, discord.Member)
-            or not has_admin_command_permissions(interaction.user, self.config)
-        ):
-            await interaction.response.send_message(
-                "You don't have permission to use this command.",
-                ephemeral=True,
-            )
-            return
-
-        guild = interaction.guild or self.bot.get_guild(self.config.guild_id)
-        domme_profile = await self.database.get_domme_profile(user_id=domme.id)
-        if domme_profile is None:
-            await interaction.response.send_message(
-                f"{domme.mention} doesn't have a Domme profile set up.",
-                ephemeral=True,
-            )
-            return
-
-        send_id = await self.database.log_throne_send(
-            domme_user_id=domme.id,
-            sub_throne_name=sub_throne_name or None,
-            amount_usd=amount,
-            item_name=item_name or None,
-            item_image_url=item_image_url or None,
-            logged_by=interaction.user.id,
-        )
-
-        # Fetch the full send record so we can build the embed
-        sends = await self.database.get_sends_for_domme(domme_user_id=domme.id)
-        send = next((s for s in sends if s.id == send_id), None)
-
-        await interaction.response.send_message(
-            f"✅ Send logged (#{send_id}).",
-            ephemeral=True,
-        )
-
-        # Post to sends channel
-        if send and self.config.sends_channel_id and guild:
-            channel = guild.get_channel(self.config.sends_channel_id)
-            if isinstance(channel, discord.TextChannel):
-                send_embed = embeds.throne_send_log_embed(send, domme)
-                try:
-                    await channel.send(embed=send_embed)
-                except discord.HTTPException:
-                    log.exception("Failed to post to sends channel.")
-
-        # Trigger an immediate leaderboard refresh
-        if self.leaderboard_task.is_running():
-            self.leaderboard_task.restart()
-        else:
-            self.leaderboard_task.start()
 
     @app_commands.command(
         name="help",

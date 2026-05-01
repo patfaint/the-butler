@@ -338,7 +338,6 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             "Restricted system controls and reference tools.",
             (
                 ("/help", "Shows the restricted bot help menu."),
-                ("/log_send", "Log a Throne send for a Domme (mod only)."),
             ),
         ),
         (
@@ -356,7 +355,7 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             SOFT_DARK,
             "Sub profile setup for Throne leaderboard tracking.",
             (
-                ("/sub", "Create or edit your sub profile (links your Throne name to your Discord)."),
+                ("/sub", "Link your Throne sending name to your Discord for automatic send tracking."),
                 ("/sub action:delete", "Deletes your saved sub profile."),
             ),
         ),
