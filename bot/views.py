@@ -956,6 +956,16 @@ class SubSetupColorView(SubSetupView):
         await self.service.show_owner_step(self.session, interaction)
 
 
+class _OwnerSelect(discord.ui.Select["SubSetupOwnerView"]):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(placeholder="Choose a Domme (or None)…", options=options)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        value = self.values[0]
+        self.view.session.owned_by_domme_user_id = None if value == "none" else int(value)
+        await self.view.service.refresh_owner_step(self.view.session, interaction, self.options)
+
+
 class SubSetupOwnerView(SubSetupView):
     def __init__(
         self,
@@ -964,31 +974,21 @@ class SubSetupOwnerView(SubSetupView):
         options: list[discord.SelectOption],
     ) -> None:
         super().__init__(service, session)
-        self._options = options
+        self.add_item(_OwnerSelect(options))
 
-        select: discord.ui.Select = discord.ui.Select(
-            placeholder="Choose a Domme (or None)…",
-            options=options,
-        )
-        select.callback = self._on_select  # type: ignore[method-assign]
-        self.add_item(select)
-
-        continue_btn = discord.ui.Button(label="Continue", style=discord.ButtonStyle.success)
-        continue_btn.callback = self._on_continue  # type: ignore[method-assign]
-        self.add_item(continue_btn)
-
-        skip_btn = discord.ui.Button(label="Skip", style=discord.ButtonStyle.secondary)
-        skip_btn.callback = self._on_skip  # type: ignore[method-assign]
-        self.add_item(skip_btn)
-
-    async def _on_select(self, interaction: discord.Interaction) -> None:
-        value = interaction.data["values"][0]  # type: ignore[index]
-        self.session.owned_by_domme_user_id = None if value == "none" else int(value)
-        await self.service.refresh_owner_step(self.session, interaction, self._options)
-
-    async def _on_continue(self, interaction: discord.Interaction) -> None:
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
         await self.service.show_review_step(self.session, interaction)
 
-    async def _on_skip(self, interaction: discord.Interaction) -> None:
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
         self.session.owned_by_domme_user_id = None
         await self.service.show_review_step(self.session, interaction)

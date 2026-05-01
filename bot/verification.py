@@ -1195,7 +1195,10 @@ class SubProfileService:
     async def start_setup(self, user: discord.User, interaction: discord.Interaction) -> None:
         """Start (or resume) setup from a slash-command interaction (DM or server)."""
         existing = await self.database.get_sub_profile(user_id=user.id)
-        session = self._make_session_from_profile(existing) if existing else SubProfileSession(user_id=user.id)
+        if existing:
+            session = self._make_session_from_profile(existing)
+        else:
+            session = SubProfileSession(user_id=user.id)
         view = SubSetupIntroView(self, session)
         await interaction.response.send_message(
             embed=embeds.sub_setup_intro_embed(),

@@ -69,7 +69,6 @@ class DommeProfile:
 
     @classmethod
     def from_row(cls, row: aiosqlite.Row) -> "DommeProfile":
-        keys = set(row.keys())
         return cls(
             user_id=row["user_id"],
             name=row["name"],
@@ -89,8 +88,8 @@ class DommeProfile:
             content_link4=row["content_link4"],
             profile_color=row["profile_color"] or 16737714,
             throne_tracking_enabled=bool(row["throne_tracking_enabled"]),
-            kinks=row["kinks"] if "kinks" in keys else None,
-            limits=row["limits"] if "limits" in keys else None,
+            kinks=row["kinks"],
+            limits=row["limits"],
             created_at=row["created_at"],
         )
 
@@ -110,17 +109,16 @@ class SubProfile:
 
     @classmethod
     def from_row(cls, row: aiosqlite.Row) -> "SubProfile":
-        keys = set(row.keys())
         return cls(
             user_id=row["user_id"],
             throne_name=row["throne_name"],
-            name=row["name"] if "name" in keys else None,
-            pronouns=row["pronouns"] if "pronouns" in keys else None,
-            age=row["age"] if "age" in keys else None,
-            profile_color=int(row["profile_color"]) if "profile_color" in keys and row["profile_color"] else 2762042,
-            kinks=row["kinks"] if "kinks" in keys else None,
-            limits=row["limits"] if "limits" in keys else None,
-            owned_by_domme_user_id=int(row["owned_by_domme_user_id"]) if "owned_by_domme_user_id" in keys and row["owned_by_domme_user_id"] else None,
+            name=row["name"],
+            pronouns=row["pronouns"],
+            age=row["age"],
+            profile_color=int(row["profile_color"]) if row["profile_color"] else 2762042,
+            kinks=row["kinks"],
+            limits=row["limits"],
+            owned_by_domme_user_id=int(row["owned_by_domme_user_id"]) if row["owned_by_domme_user_id"] else None,
             created_at=row["created_at"],
         )
 
@@ -671,7 +669,18 @@ class Database:
                 owned_by_domme_user_id = excluded.owned_by_domme_user_id,
                 created_at = sub_profiles.created_at
             """,
-            (user_id, throne_name, name, pronouns, age, profile_color, kinks, limits, owned_by_domme_user_id, _utc_now()),
+            (
+                user_id,
+                throne_name,
+                name,
+                pronouns,
+                age,
+                profile_color,
+                kinks,
+                limits,
+                owned_by_domme_user_id,
+                _utc_now(),
+            ),
         ):
             pass
         await self.connection.commit()
