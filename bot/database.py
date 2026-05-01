@@ -63,6 +63,8 @@ class DommeProfile:
     content_link4: str | None
     profile_color: int
     throne_tracking_enabled: bool
+    kinks: str | None
+    limits: str | None
     created_at: str
 
     @classmethod
@@ -86,6 +88,8 @@ class DommeProfile:
             content_link4=row["content_link4"],
             profile_color=row["profile_color"] or 16737714,
             throne_tracking_enabled=bool(row["throne_tracking_enabled"]),
+            kinks=row["kinks"],
+            limits=row["limits"],
             created_at=row["created_at"],
         )
 
@@ -94,6 +98,13 @@ class DommeProfile:
 class SubProfile:
     user_id: int
     throne_name: str | None
+    name: str | None
+    pronouns: str | None
+    age: str | None
+    profile_color: int
+    kinks: str | None
+    limits: str | None
+    owned_by_domme_user_id: int | None
     created_at: str
 
     @classmethod
@@ -101,6 +112,13 @@ class SubProfile:
         return cls(
             user_id=row["user_id"],
             throne_name=row["throne_name"],
+            name=row["name"],
+            pronouns=row["pronouns"],
+            age=row["age"],
+            profile_color=int(row["profile_color"]) if row["profile_color"] else 2762042,
+            kinks=row["kinks"],
+            limits=row["limits"],
+            owned_by_domme_user_id=int(row["owned_by_domme_user_id"]) if row["owned_by_domme_user_id"] else None,
             created_at=row["created_at"],
         )
 
@@ -251,6 +269,7 @@ class Database:
         )
         await self.connection.commit()
         await self._migrate_domme_profiles()
+        await self._migrate_sub_profiles()
         await self._claim_sends_with_matching_sub_profiles()
 
     async def close(self) -> None:
@@ -435,11 +454,33 @@ class Database:
             "content_link3": "TEXT",
             "content_link4": "TEXT",
             "profile_color": "INTEGER NOT NULL DEFAULT 16737714",
+            "kinks": "TEXT",
+            "limits": "TEXT",
         }
         for col, col_type in new_columns.items():
             if col not in columns:
                 await self.connection.execute(
                     f"ALTER TABLE domme_profiles ADD COLUMN {col} {col_type}"
+                )
+        await self.connection.commit()
+
+    async def _migrate_sub_profiles(self) -> None:
+        """Add new columns to sub_profiles if they don't exist yet (schema migration)."""
+        async with self.connection.execute("PRAGMA table_info(sub_profiles)") as cursor:
+            columns = {row["name"] for row in await cursor.fetchall()}
+        new_columns: dict[str, str] = {
+            "name": "TEXT",
+            "pronouns": "TEXT",
+            "age": "TEXT",
+            "profile_color": "INTEGER NOT NULL DEFAULT 2762042",
+            "kinks": "TEXT",
+            "limits": "TEXT",
+            "owned_by_domme_user_id": "INTEGER",
+        }
+        for col, col_type in new_columns.items():
+            if col not in columns:
+                await self.connection.execute(
+                    f"ALTER TABLE sub_profiles ADD COLUMN {col} {col_type}"
                 )
         await self.connection.commit()
 
@@ -490,6 +531,8 @@ class Database:
         content_link4: str | None,
         profile_color: int,
         throne_tracking_enabled: bool,
+        kinks: str | None,
+        limits: str | None,
     ) -> None:
         async with self.connection.execute(
             """
@@ -512,9 +555,11 @@ class Database:
                 content_link4,
                 profile_color,
                 throne_tracking_enabled,
+                kinks,
+                limits,
                 created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 name = excluded.name,
                 honorific = excluded.honorific,
@@ -533,6 +578,8 @@ class Database:
                 content_link4 = excluded.content_link4,
                 profile_color = excluded.profile_color,
                 throne_tracking_enabled = excluded.throne_tracking_enabled,
+                kinks = excluded.kinks,
+                limits = excluded.limits,
                 created_at = domme_profiles.created_at
             """,
             (
@@ -554,6 +601,8 @@ class Database:
                 content_link4,
                 profile_color,
                 int(throne_tracking_enabled),
+                kinks,
+                limits,
                 _utc_now(),
             ),
         ):
@@ -589,16 +638,49 @@ class Database:
             return None
         return SubProfile.from_row(row)
 
-    async def save_sub_profile(self, *, user_id: int, throne_name: str | None) -> None:
+    async def save_sub_profile(
+        self,
+        *,
+        user_id: int,
+        throne_name: str | None,
+        name: str | None,
+        pronouns: str | None,
+        age: str | None,
+        profile_color: int,
+        kinks: str | None,
+        limits: str | None,
+        owned_by_domme_user_id: int | None,
+    ) -> None:
         async with self.connection.execute(
             """
-            INSERT INTO sub_profiles (user_id, throne_name, created_at)
-            VALUES (?, ?, ?)
+            INSERT INTO sub_profiles (
+                user_id, throne_name, name, pronouns, age, profile_color,
+                kinks, limits, owned_by_domme_user_id, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(user_id) DO UPDATE SET
                 throne_name = excluded.throne_name,
+                name = excluded.name,
+                pronouns = excluded.pronouns,
+                age = excluded.age,
+                profile_color = excluded.profile_color,
+                kinks = excluded.kinks,
+                limits = excluded.limits,
+                owned_by_domme_user_id = excluded.owned_by_domme_user_id,
                 created_at = sub_profiles.created_at
             """,
-            (user_id, throne_name, _utc_now()),
+            (
+                user_id,
+                throne_name,
+                name,
+                pronouns,
+                age,
+                profile_color,
+                kinks,
+                limits,
+                owned_by_domme_user_id,
+                _utc_now(),
+            ),
         ):
             pass
         await self.connection.commit()
@@ -758,6 +840,40 @@ class Database:
         ):
             pass
         await self.connection.commit()
+
+    async def get_all_domme_profiles(self) -> list["DommeProfile"]:
+        """Return all saved domme profiles, ordered by creation date."""
+        async with self.connection.execute(
+            "SELECT * FROM domme_profiles ORDER BY created_at ASC"
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [DommeProfile.from_row(row) for row in rows]
+
+    async def get_sub_leaderboard_rank(self, *, user_id: int) -> int | None:
+        """Return the 1-based leaderboard rank for a sub, or None if they have no sends."""
+        async with self.connection.execute(
+            """
+            SELECT rank FROM (
+                SELECT
+                    MAX(claimed_sub_user_id) AS claimed_sub_user_id,
+                    SUM(amount_usd) AS total_usd,
+                    ROW_NUMBER() OVER (ORDER BY SUM(amount_usd) DESC) AS rank
+                FROM throne_sends
+                GROUP BY
+                    CASE
+                        WHEN claimed_sub_user_id IS NOT NULL THEN 'claimed:' || CAST(claimed_sub_user_id AS TEXT)
+                        WHEN sub_throne_name IS NOT NULL THEN 'name:' || sub_throne_name
+                        ELSE 'anonymous'
+                    END
+            ) ranked
+            WHERE claimed_sub_user_id = ?
+            """,
+            (user_id,),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return int(row["rank"])
 
     async def _fetch_one(
         self,

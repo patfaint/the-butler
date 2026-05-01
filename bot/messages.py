@@ -223,22 +223,38 @@ DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
 Run **/domme** (or **!domme**) anytime to start again."""
 
 SUB_SETUP_INTRO_TITLE = "Sub Profile Setup"
-SUB_SETUP_INTRO_DESCRIPTION = """This lets you link your Throne sending name to your Discord account.
+SUB_SETUP_INTRO_DESCRIPTION = """This lets you set up your sub profile and link your Throne sending name to your Discord account.
+
+Your profile can include your name, pronouns, age, kinks, limits, and which Domme you're owned by.
 
 When a Domme in the server receives a send on Throne, the bot will check if the sender's name matches yours and credit you on the server leaderboard.
 
 Press **Continue** when you're ready, or **Later** to come back another time."""
 
-SUB_SETUP_NAME_TITLE = "Throne Name"
+SUB_SETUP_NAME_TITLE = "Step 1: Throne Name"
 SUB_SETUP_NAME_DESCRIPTION = """**What name do you use when sending on Throne?**
 
-This will be linked to your Discord account and used to identify your sends on the server leaderboard."""
+This will be linked to your Discord account and used to identify your sends on the server leaderboard. Leave blank if you'd rather not link sends."""
+
+SUB_SETUP_DETAILS_TITLE = "Step 2: Personal Details"
+SUB_SETUP_DETAILS_DESCRIPTION = """Add any personal details you'd like displayed on your sub profile."""
+
+SUB_SETUP_KINKS_LIMITS_TITLE = "Step 3: Kinks & Limits"
+SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """Share your kinks and limits on your profile. These are optional — only add what you're comfortable sharing."""
+
+SUB_SETUP_COLOR_TITLE = "Step 4: Profile Colour"
+SUB_SETUP_COLOR_DESCRIPTION = """Choose a colour for your sub profile embed."""
+
+SUB_SETUP_OWNER_TITLE = "Step 5: Owned By"
+SUB_SETUP_OWNER_DESCRIPTION = """Are you owned by a Domme in this server? If so, select them from the list below.
+
+Choose **None** if you're unowned or would rather not say."""
 
 SUB_SETUP_REVIEW_TITLE = "Final step: Review"
 SUB_SETUP_REVIEW_DESCRIPTION = """Take a look below and confirm your details."""
 
 SUB_SETUP_COMPLETE_TITLE = "Sub profile saved!"
-SUB_SETUP_COMPLETE_DESCRIPTION = """Your Throne name is now linked to your Discord account.
+SUB_SETUP_COMPLETE_DESCRIPTION = """Your sub profile has been saved.
 
 Any sends you've already made to Dommes in this server will be credited to you on the leaderboard.
 

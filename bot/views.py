@@ -525,14 +525,32 @@ class DommeDetailsModal(discord.ui.Modal, title="The Nitty Gritty"):
             required=False,
             max_length=100,
         )
+        self.kinks_input = discord.ui.TextInput(
+            label="Kinks",
+            default=session.kinks or "",
+            required=False,
+            max_length=500,
+            style=discord.TextStyle.paragraph,
+        )
+        self.limits_input = discord.ui.TextInput(
+            label="Limits",
+            default=session.limits or "",
+            required=False,
+            max_length=500,
+            style=discord.TextStyle.paragraph,
+        )
         self.add_item(self.pronouns_input)
         self.add_item(self.age_input)
         self.add_item(self.tribute_price_input)
+        self.add_item(self.kinks_input)
+        self.add_item(self.limits_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         self.session.pronouns = _clean_optional(self.pronouns_input.value)
         self.session.age = _clean_optional(self.age_input.value)
         self.session.tribute_price = _clean_optional(self.tribute_price_input.value)
+        self.session.kinks = _clean_optional(self.kinks_input.value)
+        self.session.limits = _clean_optional(self.limits_input.value)
         await interaction.response.defer()
         await self.service.show_payments_step(self.session, interaction)
 
@@ -722,7 +740,7 @@ class SubSetupNameView(SubSetupView):
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await self.service.show_review_step(self.session, interaction)
+        await self.service.show_details_step(self.session, interaction)
 
 
 class SubSetupReviewView(SubSetupView):
@@ -806,4 +824,171 @@ class SubThroneNameModal(discord.ui.Modal, title="Throne Name"):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         self.session.throne_name = _clean_optional(self.throne_name_input.value)
         await interaction.response.defer()
+        await self.service.show_details_step(self.session, interaction)
+
+
+class SubSetupDetailsView(SubSetupView):
+    @discord.ui.button(label="Add Details", style=discord.ButtonStyle.primary)
+    async def open_modal(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(SubDetailsModal(self.service, self.session))
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_kinks_limits_step(self.session, interaction)
+
+
+class SubDetailsModal(discord.ui.Modal, title="Personal Details"):
+    def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.name_input = discord.ui.TextInput(
+            label="Name",
+            default=session.name or "",
+            required=False,
+            max_length=100,
+        )
+        self.pronouns_input = discord.ui.TextInput(
+            label="Pronouns",
+            default=session.pronouns or "",
+            required=False,
+            max_length=100,
+        )
+        self.age_input = discord.ui.TextInput(
+            label="Age",
+            default=session.age or "",
+            required=False,
+            max_length=50,
+        )
+        self.add_item(self.name_input)
+        self.add_item(self.pronouns_input)
+        self.add_item(self.age_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.name = _clean_optional(self.name_input.value)
+        self.session.pronouns = _clean_optional(self.pronouns_input.value)
+        self.session.age = _clean_optional(self.age_input.value)
+        await interaction.response.defer()
+        await self.service.show_kinks_limits_step(self.session, interaction)
+
+
+class SubSetupKinksLimitsView(SubSetupView):
+    @discord.ui.button(label="Add Kinks & Limits", style=discord.ButtonStyle.primary)
+    async def open_modal(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await interaction.response.send_modal(SubKinksLimitsModal(self.service, self.session))
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_color_step(self.session, interaction)
+
+
+class SubKinksLimitsModal(discord.ui.Modal, title="Kinks & Limits"):
+    def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
+        super().__init__(timeout=900)
+        self.service = service
+        self.session = session
+
+        self.kinks_input = discord.ui.TextInput(
+            label="Kinks",
+            default=session.kinks or "",
+            required=False,
+            max_length=500,
+            style=discord.TextStyle.paragraph,
+            placeholder="Things you enjoy…",
+        )
+        self.limits_input = discord.ui.TextInput(
+            label="Limits",
+            default=session.limits or "",
+            required=False,
+            max_length=500,
+            style=discord.TextStyle.paragraph,
+            placeholder="Hard limits or things to avoid…",
+        )
+        self.add_item(self.kinks_input)
+        self.add_item(self.limits_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.kinks = _clean_optional(self.kinks_input.value)
+        self.session.limits = _clean_optional(self.limits_input.value)
+        await interaction.response.defer()
+        await self.service.show_color_step(self.session, interaction)
+
+
+class SubSetupColorView(SubSetupView):
+    @discord.ui.select(
+        placeholder="Choose a profile colour…",
+        options=[
+            discord.SelectOption(label=label, value=str(value), emoji=emoji)
+            for value, emoji, label in PROFILE_COLOR_PRESETS
+        ],
+    )
+    async def color_select(
+        self,
+        interaction: discord.Interaction,
+        select: discord.ui.Select,
+    ) -> None:
+        self.session.profile_color = int(select.values[0])
+        await self.service.show_color_step(self.session, interaction)
+
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_owner_step(self.session, interaction)
+
+
+class _OwnerSelect(discord.ui.Select["SubSetupOwnerView"]):
+    def __init__(self, options: list[discord.SelectOption]) -> None:
+        super().__init__(placeholder="Choose a Domme (or None)…", options=options)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        value = self.values[0]
+        self.view.session.owned_by_domme_user_id = None if value == "none" else int(value)
+        await self.view.service.refresh_owner_step(self.view.session, interaction, self.options)
+
+
+class SubSetupOwnerView(SubSetupView):
+    def __init__(
+        self,
+        service: SubProfileService,
+        session: SubProfileSession,
+        options: list[discord.SelectOption],
+    ) -> None:
+        super().__init__(service, session)
+        self.add_item(_OwnerSelect(options))
+
+    @discord.ui.button(label="Continue", style=discord.ButtonStyle.success)
+    async def continue_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_review_step(self.session, interaction)
+
+    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
+    async def skip_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        self.session.owned_by_domme_user_id = None
         await self.service.show_review_step(self.session, interaction)

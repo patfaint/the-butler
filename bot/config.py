@@ -6,11 +6,13 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from bot import channels
+
 
 @dataclass(frozen=True)
 class BotConfig:
     discord_token: str
-    guild_id: int | None
+    guild_id: int
     welcome_channel_id: int
     verification_channel_id: int
     verify_log_channel_id: int
@@ -22,8 +24,7 @@ class BotConfig:
     domme_role_id: int
     submissive_role_id: int
     moderation_role_id: int
-    sends_channel_id: int | None
-    leaderboard_channel_id: int | None
+    leaderboard_channel_id: int
     database_path: Path
 
 
@@ -36,40 +37,18 @@ def load_config() -> BotConfig:
 
     return BotConfig(
         discord_token=token,
-        guild_id=_optional_int("GUILD_ID"),
-        welcome_channel_id=_required_int("WELCOME_CHANNEL_ID"),
-        verification_channel_id=_required_int("VERIFICATION_CHANNEL_ID"),
-        verify_log_channel_id=_required_int("VERIFY_LOG_CHANNEL_ID"),
-        general_channel_id=_required_int("GENERAL_CHANNEL_ID"),
-        roles_channel_id=_required_int("ROLES_CHANNEL_ID"),
-        introductions_channel_id=_required_int("INTRODUCTIONS_CHANNEL_ID"),
-        unverified_role_id=_required_int("UNVERIFIED_ROLE_ID"),
-        verified_role_id=_required_int("VERIFIED_ROLE_ID"),
-        domme_role_id=_required_int("DOMME_ROLE_ID"),
-        submissive_role_id=_required_int("SUBMISSIVE_ROLE_ID"),
-        moderation_role_id=_required_int("MODERATION_ROLE_ID"),
-        sends_channel_id=_optional_int("SENDS_CHANNEL_ID"),
-        leaderboard_channel_id=_optional_int("LEADERBOARD_CHANNEL_ID"),
+        guild_id=channels.GUILD_ID,
+        welcome_channel_id=channels.WELCOME_CHANNEL_ID,
+        verification_channel_id=channels.VERIFICATION_CHANNEL_ID,
+        verify_log_channel_id=channels.VERIFY_LOG_CHANNEL_ID,
+        general_channel_id=channels.GENERAL_CHANNEL_ID,
+        roles_channel_id=channels.ROLES_CHANNEL_ID,
+        introductions_channel_id=channels.INTRODUCTIONS_CHANNEL_ID,
+        unverified_role_id=channels.UNVERIFIED_ROLE_ID,
+        verified_role_id=channels.VERIFIED_ROLE_ID,
+        domme_role_id=channels.DOMME_ROLE_ID,
+        submissive_role_id=channels.SUBMISSIVE_ROLE_ID,
+        moderation_role_id=channels.MODERATION_ROLE_ID,
+        leaderboard_channel_id=channels.LEADERBOARD_CHANNEL_ID,
         database_path=Path(os.getenv("DATABASE_PATH", "data/the_butler.sqlite3")),
     )
-
-
-def _optional_int(name: str) -> int | None:
-    value = os.getenv(name)
-    if not value:
-        return None
-    return _parse_int(name, value)
-
-
-def _required_int(name: str) -> int:
-    value = os.getenv(name)
-    if not value:
-        raise RuntimeError(f"Missing required environment variable: {name}")
-    return _parse_int(name, value)
-
-
-def _parse_int(name: str, value: str) -> int:
-    try:
-        return int(value)
-    except ValueError as exc:
-        raise RuntimeError(f"Environment variable {name} must be an integer") from exc

@@ -338,7 +338,6 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             "Restricted system controls and reference tools.",
             (
                 ("/help", "Shows the restricted bot help menu."),
-                ("/log_send", "Log a Throne send for a Domme (mod only)."),
             ),
         ),
         (
@@ -356,7 +355,7 @@ def help_page_embed(page_index: int, total_pages: int) -> discord.Embed:
             SOFT_DARK,
             "Sub profile setup for Throne leaderboard tracking.",
             (
-                ("/sub", "Create or edit your sub profile (links your Throne name to your Discord)."),
+                ("/sub", "Link your Throne sending name to your Discord for automatic send tracking."),
                 ("/sub action:delete", "Deletes your saved sub profile."),
             ),
         ),
@@ -400,6 +399,8 @@ def domme_setup_details_embed(
     pronouns: str | None,
     age: str | None,
     tribute_price: str | None,
+    kinks: str | None,
+    limits: str | None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_DETAILS_TITLE,
@@ -409,6 +410,8 @@ def domme_setup_details_embed(
     embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
     embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
+    embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
+    embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
     embed.set_footer(text="The Butler • Step 2/4")
     return embed
 
@@ -504,6 +507,8 @@ def domme_setup_review_embed(
     content_link4: str | None,
     profile_color: int,
     throne_tracking_enabled: bool,
+    kinks: str | None,
+    limits: str | None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_REVIEW_TITLE,
@@ -527,6 +532,10 @@ def domme_setup_review_embed(
         ),
         inline=False,
     )
+    if _has_value(kinks):
+        embed.add_field(name="Kinks", value=kinks, inline=False)
+    if _has_value(limits):
+        embed.add_field(name="Limits", value=limits, inline=False)
     # Throne + tribute
     embed.add_field(name="Throne", value=_profile_value(throne), inline=True)
     embed.add_field(name="Tribute Link", value=_profile_value(tribute_link), inline=True)
@@ -653,6 +662,12 @@ def domme_profile_embed(
     ]
     if content_lines:
         _add_chunked_field(embed, name="Content Links", lines=content_lines)
+
+    # Kinks & Limits
+    if _has_value(profile.kinks):
+        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
+    if _has_value(profile.limits):
+        embed.add_field(name="Limits", value=profile.limits, inline=False)
 
     # Throne tracking badge
     if profile.throne_tracking_enabled:
@@ -781,20 +796,47 @@ def sub_profile_embed(
     member: discord.Member | discord.User,
     *,
     is_verified: bool = False,
+    rank: int | None = None,
+    owned_by_member: discord.Member | discord.User | None = None,
 ) -> discord.Embed:
     display_name = member.display_name if isinstance(member, discord.Member) else member.name
-    verified_badge = "Age Verified ✅" if is_verified else "Age Verified ❌"
+
+    # Build description with identity fields
+    identity_parts: list[str] = []
+    if _has_value(profile.name):
+        identity_parts.append(f"**Name:** {profile.name}")
+    if _has_value(profile.pronouns):
+        identity_parts.append(f"**Pronouns:** {profile.pronouns}")
+    if _has_value(profile.age):
+        identity_parts.append(f"**Age:** {profile.age}")
+    identity_parts.append("Age Verified ✅" if is_verified else "Age Verified ❌")
+
+    color = discord.Color(profile.profile_color) if profile.profile_color else SOFT_DARK
     embed = discord.Embed(
         title=f"✦ {display_name}",
-        description=verified_badge,
-        color=SOFT_DARK,
+        description="\n".join(identity_parts),
+        color=color,
     )
     embed.set_thumbnail(url=member.display_avatar.url)
-    embed.add_field(
-        name="Throne Name",
-        value=profile.throne_name if profile.throne_name else "Not set",
-        inline=False,
-    )
+
+    if profile.throne_name:
+        embed.add_field(name="Throne Name", value=profile.throne_name, inline=True)
+
+    if rank is not None:
+        embed.add_field(name="Leaderboard Rank", value=f"#{rank}", inline=True)
+    elif profile.throne_name:
+        embed.add_field(name="Leaderboard Rank", value="Unranked", inline=True)
+
+    if owned_by_member is not None:
+        embed.add_field(name="Owned By", value=owned_by_member.mention, inline=False)
+    elif profile.owned_by_domme_user_id:
+        embed.add_field(name="Owned By", value=f"<@{profile.owned_by_domme_user_id}>", inline=False)
+
+    if _has_value(profile.kinks):
+        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
+    if _has_value(profile.limits):
+        embed.add_field(name="Limits", value=profile.limits, inline=False)
+
     try:
         created = datetime.fromisoformat(profile.created_at)
         created_label = created.strftime("%m/%d/%Y")
@@ -821,18 +863,108 @@ def sub_setup_name_embed(*, throne_name: str | None) -> discord.Embed:
         color=SOFT_DARK,
     )
     embed.add_field(name="Your Throne Name", value=_profile_value(throne_name), inline=False)
-    embed.set_footer(text="The Butler • Step 1/1")
+    embed.set_footer(text="The Butler • Step 1/6")
     return embed
 
 
-def sub_setup_review_embed(*, throne_name: str | None) -> discord.Embed:
+def sub_setup_details_embed(
+    *,
+    name: str | None,
+    pronouns: str | None,
+    age: str | None,
+) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_DETAILS_TITLE,
+        description=messages.SUB_SETUP_DETAILS_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Name", value=_profile_value(name), inline=False)
+    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=True)
+    embed.add_field(name="Age", value=_profile_value(age), inline=True)
+    embed.set_footer(text="The Butler • Step 2/6")
+    return embed
+
+
+def sub_setup_kinks_limits_embed(
+    *,
+    kinks: str | None,
+    limits: str | None,
+) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_KINKS_LIMITS_TITLE,
+        description=messages.SUB_SETUP_KINKS_LIMITS_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
+    embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
+    embed.set_footer(text="The Butler • Step 3/6")
+    return embed
+
+
+def sub_setup_color_embed(*, profile_color: int) -> discord.Embed:
+    color = discord.Color(profile_color)
+    label = next(
+        (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
+        f"Custom (#{profile_color:06X})",
+    )
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_COLOR_TITLE,
+        description=messages.SUB_SETUP_COLOR_DESCRIPTION,
+        color=color,
+    )
+    embed.add_field(name="Selected Colour", value=label, inline=False)
+    embed.set_footer(text="The Butler • Step 4/6")
+    return embed
+
+
+def sub_setup_owner_embed(*, owned_by_label: str) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_OWNER_TITLE,
+        description=messages.SUB_SETUP_OWNER_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Currently Selected", value=owned_by_label, inline=False)
+    embed.set_footer(text="The Butler • Step 5/6")
+    return embed
+
+
+def sub_setup_review_embed(
+    *,
+    throne_name: str | None,
+    name: str | None,
+    pronouns: str | None,
+    age: str | None,
+    profile_color: int,
+    kinks: str | None,
+    limits: str | None,
+    owned_by_label: str,
+) -> discord.Embed:
+    color_label = next(
+        (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
+        f"#{profile_color:06X}",
+    )
     embed = _styled_embed(
         title=messages.SUB_SETUP_REVIEW_TITLE,
         description=messages.SUB_SETUP_REVIEW_DESCRIPTION,
-        color=GREEN,
+        color=discord.Color(profile_color),
     )
-    embed.add_field(name="Throne Name", value=_profile_value(throne_name), inline=False)
-    embed.set_footer(text="The Butler • Ready to save")
+    embed.add_field(
+        name="Identity",
+        value=(
+            f"**Name:** {_profile_value(name)}\n"
+            f"**Pronouns:** {_profile_value(pronouns)}\n"
+            f"**Age:** {_profile_value(age)}"
+        ),
+        inline=False,
+    )
+    embed.add_field(name="Throne Name", value=_profile_value(throne_name), inline=True)
+    embed.add_field(name="Profile Colour", value=color_label, inline=True)
+    embed.add_field(name="Owned By", value=owned_by_label, inline=False)
+    if _has_value(kinks):
+        embed.add_field(name="Kinks", value=kinks, inline=False)
+    if _has_value(limits):
+        embed.add_field(name="Limits", value=limits, inline=False)
+    embed.set_footer(text="The Butler • Step 6/6 — Ready to save")
     return embed
 
 
