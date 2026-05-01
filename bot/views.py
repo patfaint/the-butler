@@ -304,6 +304,14 @@ class DommeSetupNameView(DommeSetupView):
     ) -> None:
         await self.service.show_details_step(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_intro_step(self.session, interaction)
+
 
 class DommeSetupDetailsView(DommeSetupView):
     @discord.ui.button(label="Add Details", style=discord.ButtonStyle.primary)
@@ -321,6 +329,14 @@ class DommeSetupDetailsView(DommeSetupView):
         _: discord.ui.Button,
     ) -> None:
         await self.service.show_payments_step(self.session, interaction)
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_name_step(self.session, interaction)
 
 
 class DommeSetupPaymentsView(DommeSetupView):
@@ -364,6 +380,14 @@ class DommeSetupPaymentsView(DommeSetupView):
     ) -> None:
         await self.service.advance_after_payments(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_details_step(self.session, interaction)
+
 
 class DommeSetupThroneView(DommeSetupView):
     @discord.ui.button(label="Sign Up", style=discord.ButtonStyle.success)
@@ -383,6 +407,14 @@ class DommeSetupThroneView(DommeSetupView):
     ) -> None:
         self.session.throne_tracking_enabled = False
         await self.service.show_color_step(self.session, interaction)
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_payments_step(self.session, interaction)
 
 
 class DommeSetupColorView(DommeSetupView):
@@ -409,6 +441,17 @@ class DommeSetupColorView(DommeSetupView):
     ) -> None:
         await self.service.show_review_step(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        if self.session.throne:
+            await self.service.show_throne_step(self.session, interaction)
+        else:
+            await self.service.show_payments_step(self.session, interaction)
+
 
 class DommeSetupReviewView(DommeSetupView):
     @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
@@ -431,6 +474,14 @@ class DommeSetupReviewView(DommeSetupView):
             view=None,
         )
         self.stop()
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_color_step(self.session, interaction)
 
 
 class DommeDeleteConfirmView(discord.ui.View):
@@ -742,6 +793,14 @@ class SubSetupNameView(SubSetupView):
     ) -> None:
         await self.service.show_details_step(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_intro_step(self.session, interaction)
+
 
 class SubSetupReviewView(SubSetupView):
     @discord.ui.button(label="Yes", style=discord.ButtonStyle.success)
@@ -764,6 +823,14 @@ class SubSetupReviewView(SubSetupView):
             view=None,
         )
         self.stop()
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_owner_step(self.session, interaction)
 
 
 class SubDeleteConfirmView(discord.ui.View):
@@ -844,6 +911,14 @@ class SubSetupDetailsView(SubSetupView):
     ) -> None:
         await self.service.show_kinks_limits_step(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_name_step(self.session, interaction)
+
 
 class SubDetailsModal(discord.ui.Modal, title="Personal Details"):
     def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
@@ -897,6 +972,14 @@ class SubSetupKinksLimitsView(SubSetupView):
         _: discord.ui.Button,
     ) -> None:
         await self.service.show_color_step(self.session, interaction)
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_details_step(self.session, interaction)
 
 
 class SubKinksLimitsModal(discord.ui.Modal, title="Kinks & Limits"):
@@ -955,6 +1038,14 @@ class SubSetupColorView(SubSetupView):
     ) -> None:
         await self.service.show_owner_step(self.session, interaction)
 
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_kinks_limits_step(self.session, interaction)
+
 
 class _OwnerSelect(discord.ui.Select["SubSetupOwnerView"]):
     def __init__(self, options: list[discord.SelectOption]) -> None:
@@ -992,3 +1083,11 @@ class SubSetupOwnerView(SubSetupView):
     ) -> None:
         self.session.owned_by_domme_user_id = None
         await self.service.show_review_step(self.session, interaction)
+
+    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
+    async def back_button(
+        self,
+        interaction: discord.Interaction,
+        _: discord.ui.Button,
+    ) -> None:
+        await self.service.show_color_step(self.session, interaction)
