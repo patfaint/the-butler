@@ -918,6 +918,8 @@ class DommeProfileService:
         )
 
     async def show_name_step(
+        self,
+        session: DommeProfileSession,
         interaction: discord.Interaction,
     ) -> None:
         await self._update_session_message(
@@ -1653,11 +1655,15 @@ class VerificationCog(commands.Cog):
             action=action.value if action else None,
             target_member=user,
         )
+        response_kwargs: dict[str, object] = {
+            "content": content,
+            "embed": embed,
+            "ephemeral": not is_public,
+        }
+        if view is not None:
+            response_kwargs["view"] = view
         await interaction.response.send_message(
-            content=content,
-            embed=embed,
-            view=view,
-            ephemeral=not is_public,
+            **response_kwargs,
         )
         if view is not None and hasattr(view, "message"):
             view.message = await interaction.original_response()
