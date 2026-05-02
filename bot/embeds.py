@@ -652,6 +652,8 @@ def domme_profile_embed(
     identity_parts: list[str] = []
     if _has_value(profile.honorific):
         identity_parts.append(f"👑 {profile.honorific}")
+    if _has_value(profile.name):
+        identity_parts.append(f"**{profile.name}**")
     if _has_value(profile.pronouns):
         identity_parts.append(f"💬 {profile.pronouns}")
     identity_parts.append("✅ Age Verified" if is_verified else "❌ Age Unverified")
@@ -736,7 +738,6 @@ def domme_send_leaderboard_embed(
     display_name = member.display_name if isinstance(member, discord.Member) else member.name
     embed = discord.Embed(
         title=f"💸 {display_name}'s Sends Leaderboard",
-        description="**Sub — Amount (Sends)**",
         color=PURPLE,
     )
     if not sends:
