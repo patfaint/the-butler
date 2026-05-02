@@ -40,12 +40,11 @@ from bot.views import (
     RoleSelectionView,
     StaffReviewView,
     SubDeleteConfirmView,
-    SubSetupColorView,
-    SubSetupDetailsView,
+    SubSetupColorOwnerView,
     SubSetupIntroView,
     SubSetupKinksLimitsView,
-    SubSetupNameView,
     SubSetupOwnerView,
+    SubSetupProfileView,
     SubSetupReviewView,
     VerificationPanelView,
 )
@@ -872,10 +871,18 @@ class DommeProfileService:
             if existing
             else DommeProfileSession(user_id=member.id)
         )
-        view = DommeSetupIntroView(self, session)
+        view = DommeSetupNameView(self, session)
         try:
             session.message = await member.send(
-                embed=embeds.domme_setup_intro_embed(),
+                embed=embeds.domme_setup_details_embed(
+                    name=session.name,
+                    honorific=session.honorific,
+                    pronouns=session.pronouns,
+                    age=session.age,
+                    tribute_price=session.tribute_price,
+                    kinks=session.kinks,
+                    limits=session.limits,
+                ),
                 view=view,
             )
         except (discord.Forbidden, discord.HTTPException):
@@ -896,9 +903,17 @@ class DommeProfileService:
             if existing
             else DommeProfileSession(user_id=user.id)
         )
-        view = DommeSetupIntroView(self, session)
+        view = DommeSetupNameView(self, session)
         await interaction.response.send_message(
-            embed=embeds.domme_setup_intro_embed(),
+            embed=embeds.domme_setup_details_embed(
+                name=session.name,
+                honorific=session.honorific,
+                pronouns=session.pronouns,
+                age=session.age,
+                tribute_price=session.tribute_price,
+                kinks=session.kinks,
+                limits=session.limits,
+            ),
             view=view,
         )
         session.message = await interaction.original_response()
@@ -910,27 +925,16 @@ class DommeProfileService:
         session: DommeProfileSession,
         interaction: discord.Interaction,
     ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.domme_setup_intro_embed(),
-            view=DommeSetupIntroView(self, session),
-        )
+        # Intro is no longer a distinct step; go directly to About You.
+        await self.show_details_step(session, interaction)
 
     async def show_name_step(
         self,
         session: DommeProfileSession,
         interaction: discord.Interaction,
     ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.domme_setup_name_embed(
-                name=session.name,
-                honorific=session.honorific,
-            ),
-            view=DommeSetupNameView(self, session),
-        )
+        # Name step is now merged into the About You step.
+        await self.show_details_step(session, interaction)
 
     async def show_details_step(
         self,
@@ -941,13 +945,15 @@ class DommeProfileService:
             session,
             interaction=interaction,
             embed=embeds.domme_setup_details_embed(
+                name=session.name,
+                honorific=session.honorific,
                 pronouns=session.pronouns,
                 age=session.age,
                 tribute_price=session.tribute_price,
                 kinks=session.kinks,
                 limits=session.limits,
             ),
-            view=DommeSetupDetailsView(self, session),
+            view=DommeSetupNameView(self, session),
         )
 
     async def show_payments_step(
@@ -969,6 +975,8 @@ class DommeProfileService:
                 content_link2=session.content_link2,
                 content_link3=session.content_link3,
                 content_link4=session.content_link4,
+                kinks=session.kinks,
+                limits=session.limits,
             ),
             view=DommeSetupPaymentsView(self, session),
         )
@@ -1212,10 +1220,15 @@ class SubProfileService:
             if existing
             else SubProfileSession(user_id=member.id)
         )
-        view = SubSetupIntroView(self, session)
+        view = SubSetupProfileView(self, session)
         try:
             session.message = await member.send(
-                embed=embeds.sub_setup_intro_embed(),
+                embed=embeds.sub_setup_profile_embed(
+                    throne_name=session.throne_name,
+                    name=session.name,
+                    pronouns=session.pronouns,
+                    age=session.age,
+                ),
                 view=view,
             )
         except (discord.Forbidden, discord.HTTPException):
@@ -1236,9 +1249,14 @@ class SubProfileService:
             if existing
             else SubProfileSession(user_id=user.id)
         )
-        view = SubSetupIntroView(self, session)
+        view = SubSetupProfileView(self, session)
         await interaction.response.send_message(
-            embed=embeds.sub_setup_intro_embed(),
+            embed=embeds.sub_setup_profile_embed(
+                throne_name=session.throne_name,
+                name=session.name,
+                pronouns=session.pronouns,
+                age=session.age,
+            ),
             view=view,
         )
         session.message = await interaction.original_response()
@@ -1250,14 +1268,10 @@ class SubProfileService:
         session: SubProfileSession,
         interaction: discord.Interaction,
     ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.sub_setup_intro_embed(),
-            view=SubSetupIntroView(self, session),
-        )
+        # Intro is no longer a distinct step; go directly to Profile.
+        await self.show_profile_step(session, interaction)
 
-    async def show_name_step(
+    async def show_profile_step(
         self,
         session: SubProfileSession,
         interaction: discord.Interaction,
@@ -1265,24 +1279,13 @@ class SubProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.sub_setup_name_embed(throne_name=session.throne_name),
-            view=SubSetupNameView(self, session),
-        )
-
-    async def show_details_step(
-        self,
-        session: SubProfileSession,
-        interaction: discord.Interaction,
-    ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.sub_setup_details_embed(
+            embed=embeds.sub_setup_profile_embed(
+                throne_name=session.throne_name,
                 name=session.name,
                 pronouns=session.pronouns,
                 age=session.age,
             ),
-            view=SubSetupDetailsView(self, session),
+            view=SubSetupProfileView(self, session),
         )
 
     async def show_kinks_limits_step(
@@ -1305,14 +1308,18 @@ class SubProfileService:
         session: SubProfileSession,
         interaction: discord.Interaction,
     ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.sub_setup_color_embed(profile_color=session.profile_color),
-            view=SubSetupColorView(self, session),
-        )
+        # Redirects to merged color+owner step.
+        await self.show_color_owner_step(session, interaction)
 
     async def show_owner_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+    ) -> None:
+        # Redirects to merged color+owner step.
+        await self.show_color_owner_step(session, interaction)
+
+    async def show_color_owner_step(
         self,
         session: SubProfileSession,
         interaction: discord.Interaction,
@@ -1321,13 +1328,14 @@ class SubProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.sub_setup_owner_embed(
+            embed=embeds.sub_setup_color_owner_embed(
+                profile_color=session.profile_color,
                 owned_by_label=self._owner_label(session),
             ),
-            view=SubSetupOwnerView(self, session, options),
+            view=SubSetupColorOwnerView(self, session, options),
         )
 
-    async def refresh_owner_step(
+    async def refresh_color_owner_step(
         self,
         session: SubProfileSession,
         interaction: discord.Interaction,
@@ -1336,11 +1344,21 @@ class SubProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.sub_setup_owner_embed(
+            embed=embeds.sub_setup_color_owner_embed(
+                profile_color=session.profile_color,
                 owned_by_label=self._owner_label(session),
             ),
-            view=SubSetupOwnerView(self, session, options),
+            view=SubSetupColorOwnerView(self, session, options),
         )
+
+    async def refresh_owner_step(
+        self,
+        session: SubProfileSession,
+        interaction: discord.Interaction,
+        options: list[discord.SelectOption],
+    ) -> None:
+        # Kept for backwards compatibility.
+        await self.refresh_color_owner_step(session, interaction, options)
 
     def _owner_label(self, session: SubProfileSession) -> str:
         if session.owned_by_domme_user_id:

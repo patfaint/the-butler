@@ -46,24 +46,24 @@ UNAUTHORISED_STAFF_BUTTON_RESPONSE = (
 
 UNAUTHORISED_HELP_RESPONSE = "You do not have permission to use this command."
 
-WELCOME_TITLE = "Welcome to The Drain Server!"
-WELCOME_DESCRIPTION = """Hello {user_mention} and welcome to The Drain Server!
+WELCOME_TITLE = "Welcome to The Drain Server! 🖤"
+WELCOME_DESCRIPTION = """hey {user_mention}, glad you made it.
 
-you didn’t end up here by accident.
+you didn't end up here by accident.
 this is a space built on power, trust, and indulgence — where desire meets control and boundaries are respected above all else.
 
-whether you’re here to serve, explore, or simply observe… take a moment to settle in.
+whether you're here to serve, explore, or just lurk a little… settle in.
 
 🔒 read the rules
-💬 choose your roles
-💖 know your limits — and respect everyone else’s
+💬 pick your roles
+💖 know your limits — and respect everyone else's
 
-this is a consensual, 18+ space. everything here runs on communication, respect, and mutual understanding.
+18+ only. everything here runs on communication, respect, and mutual understanding.
 
-now breathe, read the rules, verify… and enjoy your stay."""
+now breathe, get verified, and enjoy your stay."""
 
-VERIFICATION_PANEL_TITLE = "🔞🔒 Age Verification Required 🔒🔞"
-VERIFICATION_PANEL_DESCRIPTION = """This server is strictly 18+ so in order to gain access, you must verify your age using one of the below approved methods:
+VERIFICATION_PANEL_TITLE = "🔞 Age Verification"
+VERIFICATION_PANEL_DESCRIPTION = """This server is strictly 18+. To get access you'll need to verify your age using one of these services:
 
 - Yoti
 - OnlyFans
@@ -72,69 +72,18 @@ VERIFICATION_PANEL_DESCRIPTION = """This server is strictly 18+ so in order to g
 - FetishFinder
 - YouPay
 
-FOR NOW THESE ARE THE ONLY ACCEPTED SERVICES
+**These are the only accepted services right now.**
 
-📩 How to verify:
+Hit the Verify button below and follow the steps in your DMs. Once staff approve you, I'll let you know.
 
-Click the "Verify" button below and follow the steps sent to you via DM to submit your age verification to the staff.
+No verification = no access. You've got 7 days before the removal fairy pays a visit.
 
-Once staff have approved your age verification, I'll notify you via DM and give you more information around our server.
-
-🚫 **NO VERIFICATION = NO ACCESS**
-
-Please note verification is mandatory and will lead to your removal if not complete in 7 days.
-
-Thank you
 ~ Princess Ren (sub)"""
 
-INITIAL_VERIFICATION_DM_TITLE = "🔞🔒 Age Verification 🔒🔞"
-INITIAL_VERIFICATION_DM_DESCRIPTION = """Hey there and welcome to The Drain Gang!
+INITIAL_VERIFICATION_DM_TITLE = "🔞 Age Verification"
+INITIAL_VERIFICATION_DM_DESCRIPTION = """hey, welcome to The Drain Gang!
 
-To submit your verification to the server staff, simply send a photo of your profile on one of our approved services or send a link to your page. To remind you of our approved services, here they are:
-
-- Yoti
-- OnlyFans
-- LoyalFans
-- FeetFinder
-- FetishFinder
-- YouPay
-
-⚠️ This verification submission will expire in 5 minutes if nothing is received by the bot"""
-
-ROLE_PROMPT_TITLE = "🔞🔒 Age Verification 🔒🔞"
-ROLE_PROMPT_DESCRIPTION = """Thank you for submitting that!
-
-To help us get you the right roles in the server, we just ask for the following:
-
-- Are you a Domme or Submissive?
-
-Please click the corresponding button below. This will automatically assign the right roles when your verification is approved."""
-
-PENDING_REVIEW_TITLE = "🔞🔒 Age Verification 🔒🔞"
-PENDING_REVIEW_DESCRIPTION = """Thank you!
-
-You'll receive a DM from this bot shortly with the status of your verification.
-
-While our staff review your verification, we ask that you please fill out the following form by clicking the link below. This form allows us to gain better ideas and suggestions to help improve this bot."""
-
-APPROVED_DM_TITLE = "You've been verified!"
-APPROVED_DM_DESCRIPTION = """Thank you for your patience! Our staff have approved your age verification!
-
-Head over to {roles_channel} to grab yourself some roles and feel free to introduce yourself in {introductions_channel}!
-
-While you're at it, feel free to say hello and join the conversation in {general_channel}
-
-Again, welcome to The Drain Gang!"""
-
-DENIED_UNDERAGE_DM_TITLE = "Verification Denied"
-DENIED_UNDERAGE_DM_DESCRIPTION = """Your age verification has been denied as the submitted verification indicates you do not meet the 18+ requirement for this server.
-
-This server is strictly 18+ and access cannot be granted."""
-
-DENIED_INVALID_DM_TITLE = "Verification Denied"
-DENIED_INVALID_DM_DESCRIPTION = """Your verification was denied because the submitted service is not currently accepted for this server.
-
-At this time, we only accept:
+send me a link to your profile on one of our approved services, or drop a photo of your profile page. approved services:
 
 - Yoti
 - OnlyFans
@@ -143,129 +92,120 @@ At this time, we only accept:
 - FetishFinder
 - YouPay
 
-Please return to the verification channel and submit your verification using one of the approved services."""
+⏳ heads up — this session expires in 5 minutes, so don't keep me waiting"""
 
-SESSION_EXPIRED_DM_TITLE = "Verification Expired"
-SESSION_EXPIRED_DM_DESCRIPTION = """Your verification session has expired.
+ROLE_PROMPT_TITLE = "🔞 Age Verification"
+ROLE_PROMPT_DESCRIPTION = """got it, thanks!
 
-Please return to the verification channel and click the Verify button again when you're ready."""
+one last thing — are you a Domme or a Submissive?
 
-INVALID_SUBMISSION_DM_TITLE = "Invalid Submission"
-INVALID_SUBMISSION_DM_DESCRIPTION = """I couldn't detect a valid verification link or photo.
+tap the right button below and we'll get you set up with the correct roles once you're approved."""
 
-Please send either a link to one of the approved services or a photo/screenshot of your profile on one of the approved services."""
+PENDING_REVIEW_TITLE = "✅ Verification Submitted"
+PENDING_REVIEW_DESCRIPTION = """you're in the queue! staff will take a look shortly and I'll DM you once it's done.
+
+while you wait, feel free to fill out the form below — it helps us make the bot better."""
+
+APPROVED_DM_TITLE = "🎉 you're in!"
+APPROVED_DM_DESCRIPTION = """welcome to the gang — staff have approved your verification!
+
+head over to {roles_channel} to grab some roles, introduce yourself in {introductions_channel}, and say hi in {general_channel}.
+
+enjoy the ride."""
+
+DENIED_UNDERAGE_DM_TITLE = "❌ Verification Denied"
+DENIED_UNDERAGE_DM_DESCRIPTION = """sorry, but your verification was denied — it looks like you don't meet the 18+ requirement.
+
+this is a strictly adults-only space and we can't make exceptions."""
+
+DENIED_INVALID_DM_TITLE = "❌ Verification Denied"
+DENIED_INVALID_DM_DESCRIPTION = """your verification was denied because the service you submitted isn't accepted here.
+
+we currently only accept: Yoti, OnlyFans, LoyalFans, FeetFinder, FetishFinder, or YouPay.
+
+head back to the verification channel and give it another go with one of those."""
+
+SESSION_EXPIRED_DM_TITLE = "⏰ Verification Expired"
+SESSION_EXPIRED_DM_DESCRIPTION = """oops — your verification session timed out.
+
+no worries, just head back to the verification channel and hit Verify again when you're ready."""
+
+INVALID_SUBMISSION_DM_TITLE = "🤔 Hmm, that didn't work"
+INVALID_SUBMISSION_DM_DESCRIPTION = """I couldn't make sense of that submission — I need either a link to your profile on an approved service, or a photo/screenshot of it.
+
+give it another try!"""
 
 GENERAL_DOMME_MESSAGES = (
-    "Make way, a new Domme has made their grand entrance. Welcome {user_mention}!",
-    "Get ready subs, {user_mention} has entered the building and is chancing a new wallet",
-    "{user_mention} just joined and already has people falling to their knees",
+    "make way — a new Domme just walked in 👑 welcome {user_mention}!",
+    "subs, take note: {user_mention} has entered the building and is already eyeing wallets 💸",
+    "{user_mention} just showed up and people are already on their knees 😈",
 )
 
 GENERAL_SUBMISSIVE_MESSAGES = (
-    "Look who came crawling in 👀, it's a new sub! Welcome {user_mention}",
-    "Attention all Dommes, {user_mention} is here and is ready to serve.",
-    "{user_mention} just joined and is ready to serve.",
+    "look who just crawled in 👀 welcome {user_mention}!",
+    "attention Dommes: {user_mention} is here and ready to serve 🖤",
+    "{user_mention} just joined. don't keep them waiting 😏",
 )
 
-DOMME_SETUP_INTRO_TITLE = "Domme Profile Setup"
-DOMME_SETUP_INTRO_DESCRIPTION = """This quick setup lets you create or update your Domme profile on The Drain Server.
+DOMME_SETUP_INTRO_TITLE = "👑 Domme Profile Setup"
+DOMME_SETUP_INTRO_DESCRIPTION = """let's get your profile sorted — payment links, Throne tracking, the works.
 
-Your profile can be shown with **/domme** (or **!domme**) and is used for things like:
-• Payment links and tribute info
-• Throne tracking so subs can see who's sending to you
-• Introducing yourself to the server
+everything's optional, so skip whatever you don't want."""
 
-**Everything is optional.** Skip anything you'd rather leave out and come back anytime.
+DOMME_SETUP_NAME_TITLE = "Step 1 of 3 — About You"
+DOMME_SETUP_NAME_DESCRIPTION = """how do you want subs to address you? fill in whatever you want on your profile."""
 
-Press **Continue** when you're ready, or **Later** if you'd like to come back another time."""
+DOMME_SETUP_DETAILS_TITLE = "Step 1 of 3 — About You"
+DOMME_SETUP_DETAILS_DESCRIPTION = """how do you want subs to address you? fill in whatever you want on your profile."""
 
-DOMME_SETUP_NAME_TITLE = "Step 1: Name & honorific"
-DOMME_SETUP_NAME_DESCRIPTION = """How would you like subs to address you? Add your name and any honorifics here."""
+DOMME_SETUP_PAYMENTS_TITLE = "Step 2 of 3 — Links & Extras"
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """add your links using the buttons below. want to add kinks or limits? there's a button for that too. hit **Continue** when you're done."""
 
-DOMME_SETUP_DETAILS_TITLE = "Step 2: Details"
-DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details you'd like displayed on your profile."""
+DOMME_SETUP_THRONE_TITLE = "🏰 Throne Tracking"
+DOMME_SETUP_THRONE_DESCRIPTION = """want to turn on Throne tracking? sends to your Throne will be logged and show up on the server leaderboard.
 
-DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Links"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your links across three sections:
+you can flip this on or off any time."""
 
-• **Throne & Tribute** — your Throne wishlist URL and your preferred tribute link (shown as a button on your profile)
-• **Payment Links** — up to 4 payment methods (PayPal, CashApp, Venmo, etc.)
-• **Content Links** — up to 4 content platforms (OnlyFans, Fansly, etc.)"""
+DOMME_SETUP_COLOR_TITLE = "Step 3 of 3 — Profile Colour"
+DOMME_SETUP_COLOR_DESCRIPTION = """pick a colour for your profile."""
 
-DOMME_SETUP_THRONE_TITLE = "Throne tracking"
-DOMME_SETUP_THRONE_DESCRIPTION = """It looks like you added a Throne link.
+DOMME_SETUP_REVIEW_TITLE = "Looking good — ready to save?"
+DOMME_SETUP_REVIEW_DESCRIPTION = """here's what your profile looks like. happy with it?"""
 
-Would you like to sign up for Throne tracking? When subs send to your Throne, their sends will be recorded in the server and shown on the leaderboard.
+DOMME_SETUP_COMPLETE_TITLE = "✅ Profile saved!"
+DOMME_SETUP_COMPLETE_DESCRIPTION = """use **/domme** to show it off. use **/domme action:delete** if you ever want to pull it down."""
 
-You can change this at any time."""
+DOMME_SETUP_LATER_TITLE = "No worries"
+DOMME_SETUP_LATER_DESCRIPTION = """come back whenever — just run **/domme** when you're ready."""
 
-DOMME_SETUP_COLOR_TITLE = "Step 4: Profile colour"
-DOMME_SETUP_COLOR_DESCRIPTION = """Choose a colour for your Domme profile. This will be the colour of the embed shown when your profile is viewed."""
+DOMME_SETUP_CANCELLED_TITLE = "Cancelled"
+DOMME_SETUP_CANCELLED_DESCRIPTION = """nothing was saved. run **/domme** anytime to start fresh."""
 
-DOMME_SETUP_REVIEW_TITLE = "Final step: Review"
-DOMME_SETUP_REVIEW_DESCRIPTION = """Take a look at your profile below.
+SUB_SETUP_INTRO_TITLE = "🖤 Sub Profile Setup"
+SUB_SETUP_INTRO_DESCRIPTION = """let's get you set up — link your Throne name so your sends show up on the leaderboard."""
 
-Ready to save it?"""
+SUB_SETUP_PROFILE_TITLE = "Step 1 of 3 — Your Details"
+SUB_SETUP_PROFILE_DESCRIPTION = """tell us a bit about yourself."""
 
-DOMME_SETUP_COMPLETE_TITLE = "Domme profile saved!"
-DOMME_SETUP_COMPLETE_DESCRIPTION = """Use **/domme** (or **!domme**) to show your profile in The Drain Server.
+SUB_SETUP_KINKS_LIMITS_TITLE = "Step 2 of 3 — Kinks & Limits"
+SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """totally optional — only share what you're comfortable with."""
 
-To delete it: use **/domme action:delete** or **!domme delete**."""
+SUB_SETUP_COLOR_TITLE = "Step 3 of 3 — Finishing Up"
+SUB_SETUP_COLOR_DESCRIPTION = """pick a colour for your profile, and if you're owned by a Domme in this server, select them below."""
 
-DOMME_SETUP_LATER_TITLE = "Domme Profile Setup"
-DOMME_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
+SUB_SETUP_OWNER_TITLE = "Step 3 of 3 — Finishing Up"
+SUB_SETUP_OWNER_DESCRIPTION = """owned by a Domme in this server? pick them. otherwise hit **Continue**."""
 
-Run **/domme** (or **!domme**) in The Drain Server when you're ready."""
+SUB_SETUP_REVIEW_TITLE = "Looking good — ready to save?"
+SUB_SETUP_REVIEW_DESCRIPTION = """here's your profile. happy with it?"""
 
-DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
-DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
+SUB_SETUP_COMPLETE_TITLE = "✅ Profile saved!"
+SUB_SETUP_COMPLETE_DESCRIPTION = """all set — your sends will be credited on the leaderboard from here on out.
 
-Run **/domme** (or **!domme**) anytime to start again."""
+use **/sub action:delete** to remove your profile any time."""
 
-SUB_SETUP_INTRO_TITLE = "Sub Profile Setup"
-SUB_SETUP_INTRO_DESCRIPTION = """This lets you set up your sub profile and link your Throne sending name to your Discord account.
+SUB_SETUP_LATER_TITLE = "No worries"
+SUB_SETUP_LATER_DESCRIPTION = """come back whenever — just run **/sub** when you're ready."""
 
-Your profile can include your name, pronouns, age, kinks, limits, and which Domme you're owned by.
-
-When a Domme in the server receives a send on Throne, the bot will check if the sender's name matches yours and credit you on the server leaderboard.
-
-Press **Continue** when you're ready, or **Later** to come back another time."""
-
-SUB_SETUP_NAME_TITLE = "Step 1: Throne Name"
-SUB_SETUP_NAME_DESCRIPTION = """**What name do you use when sending on Throne?**
-
-This will be linked to your Discord account and used to identify your sends on the server leaderboard. Leave blank if you'd rather not link sends."""
-
-SUB_SETUP_DETAILS_TITLE = "Step 2: Personal Details"
-SUB_SETUP_DETAILS_DESCRIPTION = """Add any personal details you'd like displayed on your sub profile."""
-
-SUB_SETUP_KINKS_LIMITS_TITLE = "Step 3: Kinks & Limits"
-SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """Share your kinks and limits on your profile. These are optional — only add what you're comfortable sharing."""
-
-SUB_SETUP_COLOR_TITLE = "Step 4: Profile Colour"
-SUB_SETUP_COLOR_DESCRIPTION = """Choose a colour for your sub profile embed."""
-
-SUB_SETUP_OWNER_TITLE = "Step 5: Owned By"
-SUB_SETUP_OWNER_DESCRIPTION = """Are you owned by a Domme in this server? If so, select them from the list below.
-
-Choose **None** if you're unowned or would rather not say."""
-
-SUB_SETUP_REVIEW_TITLE = "Final step: Review"
-SUB_SETUP_REVIEW_DESCRIPTION = """Take a look below and confirm your details."""
-
-SUB_SETUP_COMPLETE_TITLE = "Sub profile saved!"
-SUB_SETUP_COMPLETE_DESCRIPTION = """Your sub profile has been saved.
-
-Any sends you've already made to Dommes in this server will be credited to you on the leaderboard.
-
-Use **/sub action:delete** to remove your profile at any time."""
-
-SUB_SETUP_LATER_TITLE = "Sub Profile Setup"
-SUB_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
-
-Run **/sub** when you're ready."""
-
-SUB_SETUP_CANCELLED_TITLE = "Sub Profile Setup"
-SUB_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
-
-Run **/sub** anytime to start again."""
+SUB_SETUP_CANCELLED_TITLE = "Cancelled"
+SUB_SETUP_CANCELLED_DESCRIPTION = """nothing was saved. run **/sub** anytime to start fresh."""
