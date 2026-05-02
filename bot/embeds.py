@@ -656,7 +656,7 @@ def domme_profile_embed(
         identity_parts.append(f"**{profile.name}**")
     if _has_value(profile.pronouns):
         identity_parts.append(profile.pronouns)
-    identity_parts.append("age verified" if is_verified else "age unverified")
+    identity_parts.append("✅ age verified" if is_verified else "❌ age unverified")
 
     embed = discord.Embed(
         title=f"✦ {display_name}",
@@ -676,7 +676,7 @@ def domme_profile_embed(
 
     # Throne — shown separately at the top of links
     if _has_value(profile.throne):
-        embed.add_field(name="Throne", value=profile.throne, inline=False)
+        embed.add_field(name="🏰 Throne", value=profile.throne, inline=False)
 
     # Payment links — smart-labelled
     pay_lines = [
@@ -689,7 +689,7 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if pay_lines:
-        _add_chunked_field(embed, name="Payment Links", lines=pay_lines)
+        _add_chunked_field(embed, name="💸 Payment Links", lines=pay_lines)
 
     # Content links — smart-labelled
     content_lines = [
@@ -702,13 +702,13 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if content_lines:
-        _add_chunked_field(embed, name="Content Links", lines=content_lines)
+        _add_chunked_field(embed, name="🎬 Content Links", lines=content_lines)
 
     # Kinks & Limits
     if _has_value(profile.kinks):
-        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
+        embed.add_field(name="✨ Kinks", value=profile.kinks, inline=False)
     if _has_value(profile.limits):
-        embed.add_field(name="Limits", value=profile.limits, inline=False)
+        embed.add_field(name="🚫 Limits", value=profile.limits, inline=False)
 
     # Throne tracking badge
     if profile.throne_tracking_enabled:
