@@ -152,21 +152,21 @@ DOMME_SETUP_INTRO_DESCRIPTION = """let's get your profile sorted — payment lin
 
 everything's optional, so skip whatever you don't want."""
 
-DOMME_SETUP_NAME_TITLE = "Step 1 of 4 — Identity"
-DOMME_SETUP_NAME_DESCRIPTION = """how do you want subs to address you?"""
+DOMME_SETUP_NAME_TITLE = "Step 1 of 3 — About You"
+DOMME_SETUP_NAME_DESCRIPTION = """how do you want subs to address you? fill in whatever you want on your profile."""
 
-DOMME_SETUP_DETAILS_TITLE = "Step 2 of 4 — Details"
-DOMME_SETUP_DETAILS_DESCRIPTION = """anything else you want on your profile?"""
+DOMME_SETUP_DETAILS_TITLE = "Step 1 of 3 — About You"
+DOMME_SETUP_DETAILS_DESCRIPTION = """how do you want subs to address you? fill in whatever you want on your profile."""
 
-DOMME_SETUP_PAYMENTS_TITLE = "Step 3 of 4 — Links"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """add your links using the buttons below, then hit **Continue** when you're done."""
+DOMME_SETUP_PAYMENTS_TITLE = "Step 2 of 3 — Links & Extras"
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """add your links using the buttons below. want to add kinks or limits? there's a button for that too. hit **Continue** when you're done."""
 
 DOMME_SETUP_THRONE_TITLE = "🏰 Throne Tracking"
 DOMME_SETUP_THRONE_DESCRIPTION = """want to turn on Throne tracking? sends to your Throne will be logged and show up on the server leaderboard.
 
 you can flip this on or off any time."""
 
-DOMME_SETUP_COLOR_TITLE = "Step 4 of 4 — Profile Colour"
+DOMME_SETUP_COLOR_TITLE = "Step 3 of 3 — Profile Colour"
 DOMME_SETUP_COLOR_DESCRIPTION = """pick a colour for your profile."""
 
 DOMME_SETUP_REVIEW_TITLE = "Looking good — ready to save?"
@@ -184,17 +184,17 @@ DOMME_SETUP_CANCELLED_DESCRIPTION = """nothing was saved. run **/domme** anytime
 SUB_SETUP_INTRO_TITLE = "🖤 Sub Profile Setup"
 SUB_SETUP_INTRO_DESCRIPTION = """let's get you set up — link your Throne name so your sends show up on the leaderboard."""
 
-SUB_SETUP_PROFILE_TITLE = "Step 1 of 4 — Your Details"
+SUB_SETUP_PROFILE_TITLE = "Step 1 of 3 — Your Details"
 SUB_SETUP_PROFILE_DESCRIPTION = """tell us a bit about yourself."""
 
-SUB_SETUP_KINKS_LIMITS_TITLE = "Step 2 of 4 — Kinks & Limits"
+SUB_SETUP_KINKS_LIMITS_TITLE = "Step 2 of 3 — Kinks & Limits"
 SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """totally optional — only share what you're comfortable with."""
 
-SUB_SETUP_COLOR_TITLE = "Step 3 of 4 — Profile Colour"
-SUB_SETUP_COLOR_DESCRIPTION = """pick a colour for your profile."""
+SUB_SETUP_COLOR_TITLE = "Step 3 of 3 — Finishing Up"
+SUB_SETUP_COLOR_DESCRIPTION = """pick a colour for your profile, and if you're owned by a Domme in this server, select them below."""
 
-SUB_SETUP_OWNER_TITLE = "Step 4 of 4 — Owned By"
-SUB_SETUP_OWNER_DESCRIPTION = """owned by a Domme in this server? pick them. otherwise hit **None**."""
+SUB_SETUP_OWNER_TITLE = "Step 3 of 3 — Finishing Up"
+SUB_SETUP_OWNER_DESCRIPTION = """owned by a Domme in this server? pick them. otherwise hit **Continue**."""
 
 SUB_SETUP_REVIEW_TITLE = "Looking good — ready to save?"
 SUB_SETUP_REVIEW_DESCRIPTION = """here's your profile. happy with it?"""

@@ -424,6 +424,7 @@ def domme_setup_intro_embed() -> discord.Embed:
 
 
 def domme_setup_name_embed(*, name: str | None, honorific: str | None) -> discord.Embed:
+    """Kept for back-compat; main flow now uses domme_setup_details_embed."""
     embed = _styled_embed(
         title=messages.DOMME_SETUP_NAME_TITLE,
         description=messages.DOMME_SETUP_NAME_DESCRIPTION,
@@ -431,7 +432,7 @@ def domme_setup_name_embed(*, name: str | None, honorific: str | None) -> discor
     )
     embed.add_field(name="Name", value=_profile_value(name), inline=True)
     embed.add_field(name="Honorific", value=_profile_value(honorific), inline=True)
-    embed.set_footer(text="The Butler • Step 1/4")
+    embed.set_footer(text="The Butler • Step 1/3")
     return embed
 
 
@@ -442,18 +443,20 @@ def domme_setup_details_embed(
     tribute_price: str | None,
     kinks: str | None,
     limits: str | None,
+    name: str | None = None,
+    honorific: str | None = None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_DETAILS_TITLE,
         description=messages.DOMME_SETUP_DETAILS_DESCRIPTION,
-        color=PURPLE,
+        color=PINK,
     )
-    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
+    embed.add_field(name="Name", value=_profile_value(name), inline=True)
+    embed.add_field(name="Honorific", value=_profile_value(honorific), inline=True)
+    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=True)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
     embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
-    embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
-    embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
-    embed.set_footer(text="The Butler • Step 2/4")
+    embed.set_footer(text="The Butler • Step 1/3")
     return embed
 
 
@@ -469,6 +472,8 @@ def domme_setup_links_embed(
     content_link2: str | None,
     content_link3: str | None,
     content_link4: str | None,
+    kinks: str | None = None,
+    limits: str | None = None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_PAYMENTS_TITLE,
@@ -497,7 +502,11 @@ def domme_setup_links_embed(
         value="\n".join(content_lines) if content_lines else "Not provided",
         inline=False,
     )
-    embed.set_footer(text="The Butler • Step 3/4")
+    if _has_value(kinks):
+        embed.add_field(name="✨ Kinks", value=kinks, inline=False)
+    if _has_value(limits):
+        embed.add_field(name="🚫 Limits", value=limits, inline=False)
+    embed.set_footer(text="The Butler • Step 2/3")
     return embed
 
 
@@ -525,7 +534,7 @@ def domme_setup_color_embed(*, profile_color: int) -> discord.Embed:
         color=color,
     )
     embed.add_field(name="Selected Color", value=label, inline=False)
-    embed.set_footer(text="The Butler • Step 4/4")
+    embed.set_footer(text="The Butler • Step 3/3")
     return embed
 
 
@@ -969,7 +978,7 @@ def sub_setup_profile_embed(
     embed.add_field(name="Name", value=_profile_value(name), inline=True)
     embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=True)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
-    embed.set_footer(text="The Butler • Step 1/4")
+    embed.set_footer(text="The Butler • Step 1/3")
     return embed
 
 
@@ -985,11 +994,15 @@ def sub_setup_kinks_limits_embed(
     )
     embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
     embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
-    embed.set_footer(text="The Butler • Step 2/4")
+    embed.set_footer(text="The Butler • Step 2/3 (optional)")
     return embed
 
 
-def sub_setup_color_embed(*, profile_color: int) -> discord.Embed:
+def sub_setup_color_owner_embed(
+    *,
+    profile_color: int,
+    owned_by_label: str,
+) -> discord.Embed:
     color = discord.Color(profile_color)
     label = next(
         (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
@@ -1000,19 +1013,9 @@ def sub_setup_color_embed(*, profile_color: int) -> discord.Embed:
         description=messages.SUB_SETUP_COLOR_DESCRIPTION,
         color=color,
     )
-    embed.add_field(name="Selected Colour", value=label, inline=False)
-    embed.set_footer(text="The Butler • Step 3/4")
-    return embed
-
-
-def sub_setup_owner_embed(*, owned_by_label: str) -> discord.Embed:
-    embed = _styled_embed(
-        title=messages.SUB_SETUP_OWNER_TITLE,
-        description=messages.SUB_SETUP_OWNER_DESCRIPTION,
-        color=SOFT_DARK,
-    )
-    embed.add_field(name="Currently Selected", value=owned_by_label, inline=False)
-    embed.set_footer(text="The Butler • Step 4/4")
+    embed.add_field(name="Selected Colour", value=label, inline=True)
+    embed.add_field(name="Owned By", value=owned_by_label, inline=True)
+    embed.set_footer(text="The Butler • Step 3/3")
     return embed
 
 
