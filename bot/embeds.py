@@ -651,12 +651,12 @@ def domme_profile_embed(
     # Build identity description — only include fields with values
     identity_parts: list[str] = []
     if _has_value(profile.honorific):
-        identity_parts.append(f"👑 {profile.honorific}")
+        identity_parts.append(profile.honorific)
     if _has_value(profile.name):
         identity_parts.append(f"**{profile.name}**")
     if _has_value(profile.pronouns):
-        identity_parts.append(f"💬 {profile.pronouns}")
-    identity_parts.append("✅ Age Verified" if is_verified else "❌ Age Unverified")
+        identity_parts.append(profile.pronouns)
+    identity_parts.append("age verified" if is_verified else "age unverified")
 
     embed = discord.Embed(
         title=f"✦ {display_name}",
@@ -668,15 +668,15 @@ def domme_profile_embed(
     # Details — only show if at least one is set
     details_parts: list[str] = []
     if _has_value(profile.age):
-        details_parts.append(f"📅 Age: **{profile.age}**")
+        details_parts.append(f"age: **{profile.age}**")
     if _has_value(profile.tribute_price):
-        details_parts.append(f"💎 Tribute: **{profile.tribute_price}**")
+        details_parts.append(f"tribute: **{profile.tribute_price}**")
     if details_parts:
         embed.add_field(name="Details", value="\n".join(details_parts), inline=False)
 
     # Throne — shown separately at the top of links
     if _has_value(profile.throne):
-        embed.add_field(name="🏰 Throne", value=profile.throne, inline=False)
+        embed.add_field(name="Throne", value=profile.throne, inline=False)
 
     # Payment links — smart-labelled
     pay_lines = [
@@ -689,7 +689,7 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if pay_lines:
-        _add_chunked_field(embed, name="💸 Payment Links", lines=pay_lines)
+        _add_chunked_field(embed, name="Payment Links", lines=pay_lines)
 
     # Content links — smart-labelled
     content_lines = [
@@ -702,13 +702,13 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if content_lines:
-        _add_chunked_field(embed, name="🎬 Content Links", lines=content_lines)
+        _add_chunked_field(embed, name="Content Links", lines=content_lines)
 
     # Kinks & Limits
     if _has_value(profile.kinks):
-        embed.add_field(name="✨ Kinks", value=profile.kinks, inline=False)
+        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
     if _has_value(profile.limits):
-        embed.add_field(name="🚫 Limits", value=profile.limits, inline=False)
+        embed.add_field(name="Limits", value=profile.limits, inline=False)
 
     # Throne tracking badge
     if profile.throne_tracking_enabled:
@@ -737,7 +737,7 @@ def domme_send_leaderboard_embed(
     """Personal leaderboard embed shown to a Domme for sends they've received."""
     display_name = member.display_name if isinstance(member, discord.Member) else member.name
     embed = discord.Embed(
-        title=f"💸 {display_name}'s Sends Leaderboard",
+        title=f"{display_name}'s Sends Leaderboard",
         color=PURPLE,
     )
     if not sends:
@@ -796,7 +796,7 @@ def server_leaderboard_embed(
 ) -> discord.Embed:
     """Server-wide leaderboard embed (updated every 5 minutes)."""
     embed = discord.Embed(
-        title="🏆 Server Sends Leaderboard",
+        title="Server Sends Leaderboard",
         color=PURPLE,
         timestamp=datetime.now(timezone.utc),
     )
@@ -847,9 +847,9 @@ def throne_send_log_message(
     else:
         amount_part = f"**${send.amount_usd:,.2f}**"
 
-    msg = f"💸 {sub_part} → {domme_mention} — {amount_part}"
+    msg = f"{sub_part} → {domme_mention} — {amount_part}"
     if send.item_name:
-        msg += f"\n🎁 {send.item_name}"
+        msg += f"\n{send.item_name}"
     return msg
 
 
@@ -901,12 +901,12 @@ def sub_profile_embed(
     # Build description with identity fields
     identity_parts: list[str] = []
     if _has_value(profile.name):
-        identity_parts.append(f"💬 {profile.name}")
+        identity_parts.append(f"**{profile.name}**")
     if _has_value(profile.pronouns):
-        identity_parts.append(f"🏷️ {profile.pronouns}")
+        identity_parts.append(profile.pronouns)
     if _has_value(profile.age):
-        identity_parts.append(f"📅 Age: **{profile.age}**")
-    identity_parts.append("✅ Age Verified" if is_verified else "❌ Age Unverified")
+        identity_parts.append(f"age: **{profile.age}**")
+    identity_parts.append("age verified" if is_verified else "age unverified")
 
     color = discord.Color(profile.profile_color) if profile.profile_color else SOFT_DARK
     embed = discord.Embed(
@@ -917,22 +917,22 @@ def sub_profile_embed(
     embed.set_thumbnail(url=member.display_avatar.url)
 
     if profile.throne_name:
-        embed.add_field(name="🏰 Throne Name", value=profile.throne_name, inline=True)
+        embed.add_field(name="Throne Name", value=profile.throne_name, inline=True)
 
     if rank is not None:
-        embed.add_field(name="🏆 Rank", value=f"#{rank}", inline=True)
+        embed.add_field(name="Rank", value=f"#{rank}", inline=True)
     elif profile.throne_name:
-        embed.add_field(name="🏆 Rank", value="Unranked", inline=True)
+        embed.add_field(name="Rank", value="Unranked", inline=True)
 
     if owned_by_member is not None:
-        embed.add_field(name="🔗 Owned By", value=owned_by_member.mention, inline=False)
+        embed.add_field(name="Owned By", value=owned_by_member.mention, inline=False)
     elif profile.owned_by_domme_user_id:
-        embed.add_field(name="🔗 Owned By", value=f"<@{profile.owned_by_domme_user_id}>", inline=False)
+        embed.add_field(name="Owned By", value=f"<@{profile.owned_by_domme_user_id}>", inline=False)
 
     if _has_value(profile.kinks):
-        embed.add_field(name="✨ Kinks", value=profile.kinks, inline=False)
+        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
     if _has_value(profile.limits):
-        embed.add_field(name="🚫 Limits", value=profile.limits, inline=False)
+        embed.add_field(name="Limits", value=profile.limits, inline=False)
 
     try:
         created = datetime.fromisoformat(profile.created_at)
