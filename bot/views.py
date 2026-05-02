@@ -765,7 +765,7 @@ class SubSetupIntroView(SubSetupView):
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await self.service.show_name_step(self.session, interaction)
+        await self.service.show_profile_step(self.session, interaction)
 
     @discord.ui.button(label="Later", style=discord.ButtonStyle.secondary)
     async def later_button(
@@ -781,14 +781,14 @@ class SubSetupIntroView(SubSetupView):
         self.stop()
 
 
-class SubSetupNameView(SubSetupView):
-    @discord.ui.button(label="Set Throne Name", style=discord.ButtonStyle.primary)
-    async def set_name_button(
+class SubSetupProfileView(SubSetupView):
+    @discord.ui.button(label="Fill In Details", style=discord.ButtonStyle.primary)
+    async def open_modal(
         self,
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await interaction.response.send_modal(SubThroneNameModal(self.service, self.session))
+        await interaction.response.send_modal(SubProfileModal(self.service, self.session))
 
     @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
     async def skip_button(
@@ -796,7 +796,7 @@ class SubSetupNameView(SubSetupView):
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await self.service.show_details_step(self.session, interaction)
+        await self.service.show_kinks_limits_step(self.session, interaction)
 
     @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
     async def back_button(
@@ -878,59 +878,19 @@ class SubDeleteConfirmView(discord.ui.View):
                 pass
 
 
-class SubThroneNameModal(discord.ui.Modal, title="Throne Name"):
+class SubProfileModal(discord.ui.Modal, title="Your Details"):
     def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
         super().__init__(timeout=900)
         self.service = service
         self.session = session
 
         self.throne_name_input = discord.ui.TextInput(
-            label="Your Throne sending name",
+            label="Throne Sending Name",
             default=session.throne_name or "",
             required=False,
             max_length=100,
             placeholder="The name shown when you send on Throne",
         )
-        self.add_item(self.throne_name_input)
-
-    async def on_submit(self, interaction: discord.Interaction) -> None:
-        self.session.throne_name = _clean_optional(self.throne_name_input.value)
-        await interaction.response.defer()
-        await self.service.show_details_step(self.session, interaction)
-
-
-class SubSetupDetailsView(SubSetupView):
-    @discord.ui.button(label="Add Details", style=discord.ButtonStyle.primary)
-    async def open_modal(
-        self,
-        interaction: discord.Interaction,
-        _: discord.ui.Button,
-    ) -> None:
-        await interaction.response.send_modal(SubDetailsModal(self.service, self.session))
-
-    @discord.ui.button(label="Skip", style=discord.ButtonStyle.secondary)
-    async def skip_button(
-        self,
-        interaction: discord.Interaction,
-        _: discord.ui.Button,
-    ) -> None:
-        await self.service.show_kinks_limits_step(self.session, interaction)
-
-    @discord.ui.button(label="Back", style=discord.ButtonStyle.secondary)
-    async def back_button(
-        self,
-        interaction: discord.Interaction,
-        _: discord.ui.Button,
-    ) -> None:
-        await self.service.show_name_step(self.session, interaction)
-
-
-class SubDetailsModal(discord.ui.Modal, title="Personal Details"):
-    def __init__(self, service: SubProfileService, session: SubProfileSession) -> None:
-        super().__init__(timeout=900)
-        self.service = service
-        self.session = session
-
         self.name_input = discord.ui.TextInput(
             label="Name",
             default=session.name or "",
@@ -949,11 +909,13 @@ class SubDetailsModal(discord.ui.Modal, title="Personal Details"):
             required=False,
             max_length=50,
         )
+        self.add_item(self.throne_name_input)
         self.add_item(self.name_input)
         self.add_item(self.pronouns_input)
         self.add_item(self.age_input)
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
+        self.session.throne_name = _clean_optional(self.throne_name_input.value)
         self.session.name = _clean_optional(self.name_input.value)
         self.session.pronouns = _clean_optional(self.pronouns_input.value)
         self.session.age = _clean_optional(self.age_input.value)
@@ -984,7 +946,7 @@ class SubSetupKinksLimitsView(SubSetupView):
         interaction: discord.Interaction,
         _: discord.ui.Button,
     ) -> None:
-        await self.service.show_details_step(self.session, interaction)
+        await self.service.show_profile_step(self.session, interaction)
 
 
 class SubKinksLimitsModal(discord.ui.Modal, title="Kinks & Limits"):

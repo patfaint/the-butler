@@ -41,11 +41,10 @@ from bot.views import (
     StaffReviewView,
     SubDeleteConfirmView,
     SubSetupColorView,
-    SubSetupDetailsView,
     SubSetupIntroView,
     SubSetupKinksLimitsView,
-    SubSetupNameView,
     SubSetupOwnerView,
+    SubSetupProfileView,
     SubSetupReviewView,
     VerificationPanelView,
 )
@@ -1257,7 +1256,7 @@ class SubProfileService:
             view=SubSetupIntroView(self, session),
         )
 
-    async def show_name_step(
+    async def show_profile_step(
         self,
         session: SubProfileSession,
         interaction: discord.Interaction,
@@ -1265,24 +1264,13 @@ class SubProfileService:
         await self._update_session_message(
             session,
             interaction=interaction,
-            embed=embeds.sub_setup_name_embed(throne_name=session.throne_name),
-            view=SubSetupNameView(self, session),
-        )
-
-    async def show_details_step(
-        self,
-        session: SubProfileSession,
-        interaction: discord.Interaction,
-    ) -> None:
-        await self._update_session_message(
-            session,
-            interaction=interaction,
-            embed=embeds.sub_setup_details_embed(
+            embed=embeds.sub_setup_profile_embed(
+                throne_name=session.throne_name,
                 name=session.name,
                 pronouns=session.pronouns,
                 age=session.age,
             ),
-            view=SubSetupDetailsView(self, session),
+            view=SubSetupProfileView(self, session),
         )
 
     async def show_kinks_limits_step(

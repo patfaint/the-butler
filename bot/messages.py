@@ -168,104 +168,64 @@ GENERAL_SUBMISSIVE_MESSAGES = (
 )
 
 DOMME_SETUP_INTRO_TITLE = "Domme Profile Setup"
-DOMME_SETUP_INTRO_DESCRIPTION = """This quick setup lets you create or update your Domme profile on The Drain Server.
+DOMME_SETUP_INTRO_DESCRIPTION = """Set up your Domme profile — payment links, Throne tracking, and more.
 
-Your profile can be shown with **/domme** (or **!domme**) and is used for things like:
-• Payment links and tribute info
-• Throne tracking so subs can see who's sending to you
-• Introducing yourself to the server
+**Everything is optional.** Skip anything you'd rather leave out."""
 
-**Everything is optional.** Skip anything you'd rather leave out and come back anytime.
+DOMME_SETUP_NAME_TITLE = "Step 1 of 4 — Identity"
+DOMME_SETUP_NAME_DESCRIPTION = """How would you like subs to address you?"""
 
-Press **Continue** when you're ready, or **Later** if you'd like to come back another time."""
+DOMME_SETUP_DETAILS_TITLE = "Step 2 of 4 — Details"
+DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details to display on your profile."""
 
-DOMME_SETUP_NAME_TITLE = "Step 1: Name & honorific"
-DOMME_SETUP_NAME_DESCRIPTION = """How would you like subs to address you? Add your name and any honorifics here."""
+DOMME_SETUP_PAYMENTS_TITLE = "Step 3 of 4 — Links"
+DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your links. Use the buttons below to fill in each section, then press **Continue** when done."""
 
-DOMME_SETUP_DETAILS_TITLE = "Step 2: Details"
-DOMME_SETUP_DETAILS_DESCRIPTION = """Add any details you'd like displayed on your profile."""
-
-DOMME_SETUP_PAYMENTS_TITLE = "Step 3: Links"
-DOMME_SETUP_PAYMENTS_DESCRIPTION = """Add your links across three sections:
-
-• **Throne & Tribute** — your Throne wishlist URL and your preferred tribute link (shown as a button on your profile)
-• **Payment Links** — up to 4 payment methods (PayPal, CashApp, Venmo, etc.)
-• **Content Links** — up to 4 content platforms (OnlyFans, Fansly, etc.)"""
-
-DOMME_SETUP_THRONE_TITLE = "Throne tracking"
-DOMME_SETUP_THRONE_DESCRIPTION = """It looks like you added a Throne link.
-
-Would you like to sign up for Throne tracking? When subs send to your Throne, their sends will be recorded in the server and shown on the leaderboard.
+DOMME_SETUP_THRONE_TITLE = "Throne Tracking"
+DOMME_SETUP_THRONE_DESCRIPTION = """Would you like to enable Throne tracking? Sends to your Throne will be logged and shown on the server leaderboard.
 
 You can change this at any time."""
 
-DOMME_SETUP_COLOR_TITLE = "Step 4: Profile colour"
-DOMME_SETUP_COLOR_DESCRIPTION = """Choose a colour for your Domme profile. This will be the colour of the embed shown when your profile is viewed."""
+DOMME_SETUP_COLOR_TITLE = "Step 4 of 4 — Profile Colour"
+DOMME_SETUP_COLOR_DESCRIPTION = """Pick a colour for your profile embed."""
 
-DOMME_SETUP_REVIEW_TITLE = "Final step: Review"
-DOMME_SETUP_REVIEW_DESCRIPTION = """Take a look at your profile below.
+DOMME_SETUP_REVIEW_TITLE = "Review & Save"
+DOMME_SETUP_REVIEW_DESCRIPTION = """Here's your profile. Ready to save?"""
 
-Ready to save it?"""
-
-DOMME_SETUP_COMPLETE_TITLE = "Domme profile saved!"
-DOMME_SETUP_COMPLETE_DESCRIPTION = """Use **/domme** (or **!domme**) to show your profile in The Drain Server.
-
-To delete it: use **/domme action:delete** or **!domme delete**."""
+DOMME_SETUP_COMPLETE_TITLE = "Domme profile saved! ✅"
+DOMME_SETUP_COMPLETE_DESCRIPTION = """Use **/domme** to show your profile. Use **/domme action:delete** to remove it."""
 
 DOMME_SETUP_LATER_TITLE = "Domme Profile Setup"
-DOMME_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
-
-Run **/domme** (or **!domme**) in The Drain Server when you're ready."""
+DOMME_SETUP_LATER_DESCRIPTION = """No problem — run **/domme** when you're ready."""
 
 DOMME_SETUP_CANCELLED_TITLE = "Domme Profile Setup"
-DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
-
-Run **/domme** (or **!domme**) anytime to start again."""
+DOMME_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved. Run **/domme** anytime to start again."""
 
 SUB_SETUP_INTRO_TITLE = "Sub Profile Setup"
-SUB_SETUP_INTRO_DESCRIPTION = """This lets you set up your sub profile and link your Throne sending name to your Discord account.
+SUB_SETUP_INTRO_DESCRIPTION = """Set up your sub profile and link your Throne sending name so you appear on the leaderboard."""
 
-Your profile can include your name, pronouns, age, kinks, limits, and which Domme you're owned by.
+SUB_SETUP_PROFILE_TITLE = "Step 1 of 4 — Your Details"
+SUB_SETUP_PROFILE_DESCRIPTION = """Enter your Throne sending name and personal details."""
 
-When a Domme in the server receives a send on Throne, the bot will check if the sender's name matches yours and credit you on the server leaderboard.
+SUB_SETUP_KINKS_LIMITS_TITLE = "Step 2 of 4 — Kinks & Limits"
+SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """Optional — only share what you're comfortable with."""
 
-Press **Continue** when you're ready, or **Later** to come back another time."""
+SUB_SETUP_COLOR_TITLE = "Step 3 of 4 — Profile Colour"
+SUB_SETUP_COLOR_DESCRIPTION = """Pick a colour for your profile embed."""
 
-SUB_SETUP_NAME_TITLE = "Step 1: Throne Name"
-SUB_SETUP_NAME_DESCRIPTION = """**What name do you use when sending on Throne?**
+SUB_SETUP_OWNER_TITLE = "Step 4 of 4 — Owned By"
+SUB_SETUP_OWNER_DESCRIPTION = """Are you owned by a Domme in this server? Choose **None** if not."""
 
-This will be linked to your Discord account and used to identify your sends on the server leaderboard. Leave blank if you'd rather not link sends."""
+SUB_SETUP_REVIEW_TITLE = "Review & Save"
+SUB_SETUP_REVIEW_DESCRIPTION = """Here's your profile. Ready to save?"""
 
-SUB_SETUP_DETAILS_TITLE = "Step 2: Personal Details"
-SUB_SETUP_DETAILS_DESCRIPTION = """Add any personal details you'd like displayed on your sub profile."""
+SUB_SETUP_COMPLETE_TITLE = "Sub profile saved! ✅"
+SUB_SETUP_COMPLETE_DESCRIPTION = """Your profile has been saved and your sends will be credited on the leaderboard.
 
-SUB_SETUP_KINKS_LIMITS_TITLE = "Step 3: Kinks & Limits"
-SUB_SETUP_KINKS_LIMITS_DESCRIPTION = """Share your kinks and limits on your profile. These are optional — only add what you're comfortable sharing."""
-
-SUB_SETUP_COLOR_TITLE = "Step 4: Profile Colour"
-SUB_SETUP_COLOR_DESCRIPTION = """Choose a colour for your sub profile embed."""
-
-SUB_SETUP_OWNER_TITLE = "Step 5: Owned By"
-SUB_SETUP_OWNER_DESCRIPTION = """Are you owned by a Domme in this server? If so, select them from the list below.
-
-Choose **None** if you're unowned or would rather not say."""
-
-SUB_SETUP_REVIEW_TITLE = "Final step: Review"
-SUB_SETUP_REVIEW_DESCRIPTION = """Take a look below and confirm your details."""
-
-SUB_SETUP_COMPLETE_TITLE = "Sub profile saved!"
-SUB_SETUP_COMPLETE_DESCRIPTION = """Your sub profile has been saved.
-
-Any sends you've already made to Dommes in this server will be credited to you on the leaderboard.
-
-Use **/sub action:delete** to remove your profile at any time."""
+Use **/sub action:delete** to remove it at any time."""
 
 SUB_SETUP_LATER_TITLE = "Sub Profile Setup"
-SUB_SETUP_LATER_DESCRIPTION = """No problem — you can continue anytime.
-
-Run **/sub** when you're ready."""
+SUB_SETUP_LATER_DESCRIPTION = """No problem — run **/sub** when you're ready."""
 
 SUB_SETUP_CANCELLED_TITLE = "Sub Profile Setup"
-SUB_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved.
-
-Run **/sub** anytime to start again."""
+SUB_SETUP_CANCELLED_DESCRIPTION = """Nothing was saved. Run **/sub** anytime to start again."""
