@@ -85,7 +85,7 @@ def load_config() -> BotConfig:
         leaderboard_channel_id=channels.LEADERBOARD_CHANNEL_ID,
         send_track_channel_id=channels.SEND_TRACK_CHANNEL_ID,
         database_path=Path(os.getenv("DATABASE_PATH", "/opt/the-butler/data/the_butler.sqlite3")),
-        throne_poll_interval_seconds=_env_int("THRONE_POLL_INTERVAL_SECONDS", 300, minimum=30),
+        throne_poll_interval_seconds=_env_int("THRONE_POLL_INTERVAL_SECONDS", 30, minimum=30),
         throne_poll_per_domme_delay_seconds=_env_float(
             "THRONE_POLL_PER_DOMME_DELAY_SECONDS", 3.0, minimum=0.0
         ),
