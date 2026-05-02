@@ -1,11 +1,12 @@
-"""Background task that polls opted-in Dommes' Throne pages and posts new sends.
+"""Background task that polls opted-in Dommes' Throne alerts and posts new sends.
 
 The polling loop runs every ``THRONE_POLL_INTERVAL_SECONDS`` (default 5
-minutes). For each Domme who has both a Throne URL and opted in to throne
-tracking, we fetch their public Throne page, diff the result against what we
-already have in the database (keyed on the per-send ``external_id``), insert
-new sends via :meth:`Database.log_throne_send`, and post an embed for each new
-send to the configured send-track channel.
+minutes). For each Domme who has both a Throne URL and opted in to tracking,
+we first query the public browser-source alert overlays, then fall back to the
+public Throne page scraper if the creator cannot be resolved. New sends are
+diffed against SQLite by ``external_id``, inserted via
+:meth:`Database.log_throne_send`, and posted to the configured send-track
+channel.
 
 The very first poll for a given Domme **seeds** the database with the current
 page contents but does not post embeds — this prevents a flood of historic
@@ -164,10 +165,12 @@ class ThroneTrackerCog(commands.Cog):
             user_agent=self.config.throne_user_agent,
             timeout_seconds=self.config.throne_http_timeout_seconds,
         )
-        if not scraped:
+        if scraped is None:
             self._record_failure(profile.user_id)
             return 0
         self._record_success(profile.user_id)
+        if not scraped:
+            return 0
 
         # First-run baseline: if we've never seen any sends for this Domme,
         # store the current page as seeded (claim/leaderboard counts still

@@ -1,4 +1,10 @@
-"""Scraper for public Throne profile pages.
+"""Fetch recent Throne sends from stream-alert overlays or public pages.
+
+The preferred source is Throne's browser-source alert backing store. The
+browser-source URL contains a creator id, and public Firestore reads can also
+resolve a creator id from a Throne username. Overlay documents contain the same
+payload Throne uses for stream alerts, including ``overlayId``, gifter name,
+item name, item image, and timestamp.
 
 Throne profiles (throne.com / throne.gifts) are server-rendered Next.js pages.
 The activity / supporters feed is present in two forms:
@@ -30,6 +36,13 @@ from urllib.parse import urlparse, urlunparse
 import aiohttp
 
 log = logging.getLogger(__name__)
+
+_FIRESTORE_DOCUMENTS_URL = (
+    "https://firestore.googleapis.com/v1/projects/onlywish-9d17b/"
+    "databases/(default)/documents"
+)
+_OVERLAY_SEND_TYPES = {"item-purchased-stream-alert"}
+_OVERLAY_QUERY_LIMIT = 25
 
 
 @dataclass(frozen=True)
@@ -139,16 +152,25 @@ async def fetch_recent_sends(
     http: aiohttp.ClientSession,
     user_agent: str,
     timeout_seconds: float = 10.0,
-) -> list[ScrapedSend]:
-    """Fetch the public Throne page and extract recent sends.
+) -> list[ScrapedSend] | None:
+    """Fetch recent sends for a Throne profile.
 
-    Returns an empty list on any HTTP / network / parse failure. The polling
-    loop relies on this — it must not raise.
+    Returns ``None`` on HTTP / network / parse failure, and ``[]`` when the
+    request succeeded but there are no visible sends. The polling loop relies
+    on this distinction so empty-but-valid overlays are not treated as failures.
     """
+    overlay_sends = await fetch_recent_overlay_sends(
+        throne_url,
+        http=http,
+        timeout_seconds=timeout_seconds,
+    )
+    if overlay_sends is not None:
+        return overlay_sends
+
     normalized = normalize_throne_url(throne_url)
     if normalized is None:
         log.warning("Skipping unrecognised Throne URL: %r", throne_url)
-        return []
+        return None
 
     headers = {
         "User-Agent": user_agent,
@@ -162,17 +184,282 @@ async def fetch_recent_sends(
                 log.warning(
                     "Throne page %s returned HTTP %s", normalized, resp.status
                 )
-                return []
+                return None
             html = await resp.text()
     except (aiohttp.ClientError, TimeoutError) as exc:
         log.warning("Failed to fetch Throne page %s: %s", normalized, exc)
-        return []
+        return None
 
     try:
         return parse_sends_from_html(html)
     except Exception:  # noqa: BLE001 - never let parsing kill the poller
         log.exception("Failed to parse Throne page %s", normalized)
-        return []
+        return None
+
+
+async def fetch_recent_overlay_sends(
+    throne_url: str,
+    *,
+    http: aiohttp.ClientSession,
+    timeout_seconds: float = 10.0,
+) -> list[ScrapedSend] | None:
+    """Fetch recent browser-source overlay sends for a Throne profile.
+
+    Returns ``None`` if the URL cannot be resolved to a Throne creator id or if
+    Firestore cannot be read. Returns ``[]`` when the creator resolves but no
+    purchased-item overlays are currently available.
+    """
+    creator_id = await _resolve_creator_id(
+        throne_url,
+        http=http,
+        timeout_seconds=timeout_seconds,
+    )
+    if creator_id is None:
+        return None
+
+    documents = await _query_overlay_documents(
+        creator_id,
+        http=http,
+        timeout_seconds=timeout_seconds,
+    )
+    if documents is None:
+        return None
+
+    sends: list[ScrapedSend] = []
+    seen_ids: set[str] = set()
+    for document in documents:
+        send = _overlay_document_to_send(document)
+        if send is None or send.external_id in seen_ids:
+            continue
+        seen_ids.add(send.external_id)
+        sends.append(send)
+    sends.sort(key=lambda s: s.sent_at)
+    return sends
+
+
+async def _resolve_creator_id(
+    throne_url: str,
+    *,
+    http: aiohttp.ClientSession,
+    timeout_seconds: float,
+) -> str | None:
+    direct_creator_id = _creator_id_from_stream_alert_url(throne_url)
+    if direct_creator_id:
+        return direct_creator_id
+
+    username = _username_from_throne_url(throne_url)
+    if username is None:
+        return None
+
+    payload = {
+        "structuredQuery": {
+            "from": [{"collectionId": "creators"}],
+            "where": {
+                "fieldFilter": {
+                    "field": {"fieldPath": "username"},
+                    "op": "EQUAL",
+                    "value": {"stringValue": username},
+                }
+            },
+            "limit": 1,
+        }
+    }
+    rows = await _run_firestore_query(payload, http=http, timeout_seconds=timeout_seconds)
+    if rows is None:
+        return None
+    for row in rows:
+        document = row.get("document")
+        if not isinstance(document, dict):
+            continue
+        fields = _firestore_fields_to_python(document.get("fields"))
+        raw_id = fields.get("_id") or _document_id(document)
+        if isinstance(raw_id, str) and raw_id:
+            return raw_id
+    log.info("No Throne creator found for username %s.", username)
+    return None
+
+
+async def _query_overlay_documents(
+    creator_id: str,
+    *,
+    http: aiohttp.ClientSession,
+    timeout_seconds: float,
+) -> list[dict[str, Any]] | None:
+    payload = {
+        "structuredQuery": {
+            "from": [{"collectionId": "overlays"}],
+            "where": {
+                "fieldFilter": {
+                    "field": {"fieldPath": "creatorId"},
+                    "op": "EQUAL",
+                    "value": {"stringValue": creator_id},
+                }
+            },
+            "orderBy": [
+                {
+                    "field": {"fieldPath": "createdAt"},
+                    "direction": "DESCENDING",
+                }
+            ],
+            "limit": _OVERLAY_QUERY_LIMIT,
+        }
+    }
+    rows = await _run_firestore_query(payload, http=http, timeout_seconds=timeout_seconds)
+    if rows is None:
+        return None
+    documents: list[dict[str, Any]] = []
+    for row in rows:
+        document = row.get("document")
+        if isinstance(document, dict):
+            documents.append(document)
+    return documents
+
+
+async def _run_firestore_query(
+    payload: dict[str, Any],
+    *,
+    http: aiohttp.ClientSession,
+    timeout_seconds: float,
+) -> list[dict[str, Any]] | None:
+    timeout = aiohttp.ClientTimeout(total=timeout_seconds)
+    try:
+        async with http.post(
+            f"{_FIRESTORE_DOCUMENTS_URL}:runQuery",
+            json=payload,
+            timeout=timeout,
+        ) as resp:
+            if resp.status != 200:
+                text = await resp.text()
+                log.warning("Throne Firestore query returned HTTP %s: %s", resp.status, text[:500])
+                return None
+            data = await resp.json()
+    except (aiohttp.ClientError, TimeoutError) as exc:
+        log.warning("Failed to query Throne Firestore: %s", exc)
+        return None
+    if not isinstance(data, list):
+        log.warning("Unexpected Throne Firestore query response shape: %r", type(data).__name__)
+        return None
+    return [row for row in data if isinstance(row, dict)]
+
+
+def _overlay_document_to_send(document: dict[str, Any]) -> ScrapedSend | None:
+    fields = _firestore_fields_to_python(document.get("fields"))
+    overlay_info = fields.get("overlayInformation")
+    if not isinstance(overlay_info, dict):
+        return None
+    overlay_type = overlay_info.get("type")
+    if overlay_type not in _OVERLAY_SEND_TYPES:
+        return None
+
+    overlay_id = fields.get("overlayId") or _document_id(document)
+    if not isinstance(overlay_id, str) or not overlay_id:
+        return None
+    sent_at = _normalize_timestamp(fields.get("createdAt"))
+    if sent_at is None:
+        return None
+
+    sender_name = _coerce_name(overlay_info.get("gifterUsername"))
+    item_name = _coerce_str(overlay_info.get("itemName"))
+    item_image_url = _coerce_str(overlay_info.get("itemImage"))
+    if item_image_url and not item_image_url.lower().startswith(("http://", "https://")):
+        item_image_url = None
+
+    return ScrapedSend(
+        external_id=f"throne-overlay:{overlay_id}",
+        sender_name=sender_name,
+        amount_usd=None,
+        item_name=item_name,
+        item_image_url=item_image_url,
+        sent_at=sent_at,
+    )
+
+
+def _creator_id_from_stream_alert_url(throne_url: str) -> str | None:
+    parsed = _parse_throne_url(throne_url)
+    if parsed is None:
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if len(parts) >= 2 and parts[0] == "stream-alerts":
+        return parts[1]
+    return None
+
+
+def _username_from_throne_url(throne_url: str) -> str | None:
+    parsed = _parse_throne_url(throne_url)
+    if parsed is None:
+        return None
+    parts = [part for part in parsed.path.split("/") if part]
+    if not parts:
+        return None
+    if parts[0] == "stream-alerts":
+        return None
+    if parts[0] in {"u", "wishlist"} and len(parts) >= 2:
+        return parts[1]
+    return parts[0]
+
+
+def _parse_throne_url(throne_url: str):
+    if not throne_url:
+        return None
+    url = throne_url.strip()
+    if not url:
+        return None
+    if "://" not in url:
+        url = "https://" + url
+    try:
+        parsed = urlparse(url)
+    except ValueError:
+        return None
+    host = (parsed.hostname or "").lower().lstrip(".")
+    if host.startswith("www."):
+        host = host[4:]
+    if host not in {"throne.com", "throne.gifts"}:
+        return None
+    return parsed
+
+
+def _document_id(document: dict[str, Any]) -> str | None:
+    name = document.get("name")
+    if not isinstance(name, str) or "/" not in name:
+        return None
+    return name.rsplit("/", 1)[-1] or None
+
+
+def _firestore_fields_to_python(fields: Any) -> dict[str, Any]:
+    if not isinstance(fields, dict):
+        return {}
+    return {key: _firestore_value_to_python(value) for key, value in fields.items()}
+
+
+def _firestore_value_to_python(value: Any) -> Any:
+    if not isinstance(value, dict):
+        return None
+    if "stringValue" in value:
+        return value["stringValue"]
+    if "integerValue" in value:
+        try:
+            return int(value["integerValue"])
+        except (TypeError, ValueError):
+            return None
+    if "doubleValue" in value:
+        try:
+            return float(value["doubleValue"])
+        except (TypeError, ValueError):
+            return None
+    if "booleanValue" in value:
+        return bool(value["booleanValue"])
+    if "timestampValue" in value:
+        return value["timestampValue"]
+    if "mapValue" in value:
+        return _firestore_fields_to_python(value["mapValue"].get("fields"))
+    if "arrayValue" in value:
+        values = value["arrayValue"].get("values", [])
+        if not isinstance(values, list):
+            return []
+        return [_firestore_value_to_python(item) for item in values]
+    if "nullValue" in value:
+        return None
+    return None
 
 
 def parse_sends_from_html(html: str) -> list[ScrapedSend]:

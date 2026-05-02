@@ -738,10 +738,11 @@ def domme_send_leaderboard_embed(
         embed.set_footer(text="The Drain Server • Throne Tracking")
         return embed
 
-    # Group by sub using a collision-free prefixed key and sum amounts
+    # Group by sub using a collision-free prefixed key and count sends.
     from collections import defaultdict
 
     totals: dict[str, float] = defaultdict(float)
+    counts: dict[str, int] = defaultdict(int)
     labels: dict[str, str] = {}
     for send in sends:
         if send.claimed_sub_user_id:
@@ -750,6 +751,7 @@ def domme_send_leaderboard_embed(
             key = f"name:{send.sub_throne_name.lower()}"
         else:
             key = "anonymous"
+        counts[key] += 1
         totals[key] += send.amount_usd
         if key not in labels:
             if send.claimed_sub_user_id:
@@ -759,14 +761,27 @@ def domme_send_leaderboard_embed(
             else:
                 labels[key] = "*Unclaimed*"
 
-    sorted_entries = sorted(totals.items(), key=lambda x: x[1], reverse=True)
-    lines = [
-        f"**{labels[key]}** — ${total:,.2f}"
-        for key, total in sorted_entries[:20]
-    ]
+    sorted_entries = sorted(
+        counts.items(),
+        key=lambda x: (x[1], totals[x[0]]),
+        reverse=True,
+    )
+    lines = []
+    for key, count in sorted_entries[:20]:
+        total = totals[key]
+        send_word = "send" if count == 1 else "sends"
+        if total > 0:
+            lines.append(f"**{labels[key]}** — {count} {send_word} (${total:,.2f})")
+        else:
+            lines.append(f"**{labels[key]}** — {count} {send_word}")
     total_all = sum(totals.values())
     embed.description = "\n".join(lines) if lines else "No sends recorded yet."
-    embed.set_footer(text=f"The Drain Server • Total received: ${total_all:,.2f}")
+    total_count = sum(counts.values())
+    if total_all > 0:
+        footer = f"Total sends: {total_count} • Total received: ${total_all:,.2f}"
+    else:
+        footer = f"Total sends: {total_count}"
+    embed.set_footer(text=f"The Drain Server • {footer}")
     return embed
 
 
@@ -794,7 +809,12 @@ def server_leaderboard_embed(
         else:
             sub_label = "*Unclaimed*"
         domme_label = f"<@{row.domme_user_id}>"
-        lines.append(f"{sub_label} ~ {domme_label}     **${row.total_usd:,.2f}**")
+        send_word = "send" if row.send_count == 1 else "sends"
+        if row.total_usd > 0:
+            score = f"**{row.send_count} {send_word}** (${row.total_usd:,.2f})"
+        else:
+            score = f"**{row.send_count} {send_word}**"
+        lines.append(f"{sub_label} ~ {domme_label}     {score}")
 
     embed.description = "\n".join(lines)
     embed.set_footer(text="The Drain Server • Updates every 5 minutes")

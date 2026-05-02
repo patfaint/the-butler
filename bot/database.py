@@ -163,6 +163,7 @@ class LeaderboardRow:
     claimed_sub_user_id: int | None
     domme_user_id: int
     total_usd: float
+    send_count: int
 
 
 class Database:
@@ -869,7 +870,8 @@ class Database:
                 MAX(sub_throne_name) AS sub_throne_name,
                 MAX(claimed_sub_user_id) AS claimed_sub_user_id,
                 domme_user_id,
-                SUM(amount_usd) AS total_usd
+                SUM(amount_usd) AS total_usd,
+                COUNT(*) AS send_count
             FROM throne_sends
             GROUP BY
                 CASE
@@ -878,7 +880,7 @@ class Database:
                     ELSE 'anonymous'
                 END,
                 domme_user_id
-            ORDER BY total_usd DESC
+            ORDER BY send_count DESC, total_usd DESC
             LIMIT ?
             """,
             (limit,),
@@ -890,6 +892,7 @@ class Database:
                 claimed_sub_user_id=int(row["claimed_sub_user_id"]) if row["claimed_sub_user_id"] is not None else None,
                 domme_user_id=int(row["domme_user_id"]),
                 total_usd=float(row["total_usd"]),
+                send_count=int(row["send_count"]),
             )
             for row in rows
         ]
@@ -941,7 +944,8 @@ class Database:
                 SELECT
                     MAX(claimed_sub_user_id) AS claimed_sub_user_id,
                     SUM(amount_usd) AS total_usd,
-                    ROW_NUMBER() OVER (ORDER BY SUM(amount_usd) DESC) AS rank
+                    COUNT(*) AS send_count,
+                    ROW_NUMBER() OVER (ORDER BY COUNT(*) DESC, SUM(amount_usd) DESC) AS rank
                 FROM throne_sends
                 GROUP BY
                     CASE
