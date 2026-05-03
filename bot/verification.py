@@ -98,6 +98,7 @@ class SubProfileSession:
 
 class ReactionRoleService:
     _CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
+    _HEX_COLOR_RE = re.compile(r"^[0-9a-fA-F]{6}$")
 
     def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
         self.bot = bot
@@ -337,6 +338,7 @@ class ReactionRoleService:
 
         if not parsed:
             return "Please provide at least one emoji-to-role mapping."
+        # Keep this capped so messages remain readable/manageable.
         if len(parsed) > 20:
             return "Please keep reaction-role mappings to 20 lines or fewer."
         return parsed
@@ -347,7 +349,7 @@ class ReactionRoleService:
             return embeds.PURPLE
         if value.startswith("#"):
             value = value[1:]
-        if len(value) != 6 or any(ch not in "0123456789abcdefABCDEF" for ch in value):
+        if not self._HEX_COLOR_RE.fullmatch(value):
             return None
         return discord.Color(int(value, 16))
 
@@ -362,6 +364,7 @@ class ReactionRoleService:
             emoji_name = custom.group(2)
             display = f"<{'a' if animated else ''}:{emoji_name}:{emoji_id}>"
             return (f"custom:{emoji_id}", display)
+        # Guardrail for unusual pasted content; practical upper bound for unicode emoji strings.
         if len(value) > 32:
             return None
         return (f"unicode:{value}", value)
