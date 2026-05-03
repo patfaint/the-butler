@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime
 
 import discord
 
@@ -222,7 +222,7 @@ def verification_log_embed(
             f"**User has marked they are a {request.selected_role or 'Unknown'}**"
         ),
         color=PURPLE,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=discord.utils.utcnow(),
     )
     if member:
         embed.set_thumbnail(url=member.display_avatar.url)
@@ -253,7 +253,7 @@ def verification_outcome_embed(
     )
     embed.add_field(
         name="Verification Date",
-        value=datetime.now(timezone.utc).strftime("%m/%d/%Y"),
+        value=discord.utils.utcnow().strftime("%m/%d/%Y"),
         inline=False,
     )
     embed.add_field(
@@ -433,7 +433,7 @@ def reaction_role_embed(
         title=title.strip() or "Reaction Roles",
         description=description.strip(),
         color=color,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=discord.utils.utcnow(),
     )
     lines = [f"{emoji} = {role_mention}" for emoji, role_mention in mappings]
     embed.add_field(name="Role Reactions", value="\n".join(lines), inline=False)
@@ -776,7 +776,7 @@ def domme_send_leaderboard_embed(
     embed = _styled_embed(
         title=f"💸 {display_name}'s Sends Leaderboard",
         color=PURPLE,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=discord.utils.utcnow(),
     )
     if not sends:
         embed.description = "No sends recorded yet."
@@ -838,7 +838,7 @@ def server_leaderboard_embed(
     embed = _styled_embed(
         title="🏆 Server Sends Leaderboard",
         color=PURPLE,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=discord.utils.utcnow(),
     )
     if not rows:
         embed.description = "No sends recorded yet. Be the first!"
@@ -884,7 +884,7 @@ def throne_send_log_embed(
     embed = _styled_embed(
         title="💸 New Send Received!",
         color=GREEN,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=discord.utils.utcnow(),
     )
     embed.add_field(name="Domme", value=domme_label, inline=True)
     embed.add_field(name="From", value=sub_label, inline=True)

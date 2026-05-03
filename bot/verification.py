@@ -344,7 +344,6 @@ class ReactionRoleService:
 
         if not parsed:
             return "Please provide at least one emoji-to-role mapping."
-        # Keep this capped so messages remain readable/manageable.
         # Keep this capped for message readability and manageable setup UX.
         if len(parsed) > 20:
             return "Please keep reaction-role mappings to 20 or fewer."
