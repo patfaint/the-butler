@@ -97,6 +97,8 @@ class SubProfileSession:
 
 
 class ReactionRoleService:
+    """Manage reaction-role setup, persistence, and add/remove role events."""
+
     _CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
     _HEX_COLOR_RE = re.compile(r"^[0-9a-fA-F]{6}$")
 
@@ -115,6 +117,7 @@ class ReactionRoleService:
         color_raw: str,
         mappings_raw: str,
     ) -> None:
+        """Validate modal input, post the message, add reactions, and persist mappings."""
         if interaction.guild is None or not isinstance(interaction.user, discord.Member):
             await interaction.response.send_message(
                 "This setup can only be used inside the server.",
@@ -247,6 +250,7 @@ class ReactionRoleService:
         *,
         added: bool,
     ) -> None:
+        """Apply or remove a mapped role when a tracked reaction is added/removed."""
         if payload.guild_id is None:
             return
         if self.bot.user and payload.user_id == self.bot.user.id:
@@ -306,6 +310,7 @@ class ReactionRoleService:
         mappings_raw: str,
         guild: discord.Guild,
     ) -> list[tuple[str, str, discord.Role]] | str:
+        """Parse `emoji = role` lines into `(emoji_key, emoji_display, role)` tuples."""
         parsed: list[tuple[str, str, discord.Role]] = []
         seen_keys: set[str] = set()
 
@@ -344,6 +349,7 @@ class ReactionRoleService:
         return parsed
 
     def _parse_hex_color(self, raw: str) -> discord.Color | None:
+        """Parse hex color (with optional #), defaulting to purple when empty."""
         value = raw.strip()
         if not value:
             return embeds.PURPLE
@@ -354,6 +360,7 @@ class ReactionRoleService:
         return discord.Color(int(value, 16))
 
     def _normalize_emoji(self, raw: str) -> tuple[str, str] | None:
+        """Normalize emoji text into `(emoji_key, emoji_display)` for storage/display."""
         value = raw.strip()
         if not value:
             return None
@@ -370,6 +377,7 @@ class ReactionRoleService:
         return (f"unicode:{value}", value)
 
     def _emoji_key_from_partial(self, emoji: discord.PartialEmoji) -> str:
+        """Convert a PartialEmoji into the normalized database lookup key."""
         if emoji.id is not None:
             return f"custom:{emoji.id}"
         return f"unicode:{emoji.name or ''}"

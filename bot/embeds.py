@@ -40,6 +40,7 @@ def _styled_embed(
 
 
 def _set_butler_footer(embed: discord.Embed, detail: str) -> None:
+    """Set the standard Butler footer with a detail suffix."""
     embed.set_footer(text=f"The Butler • {detail}")
 
 
