@@ -236,14 +236,10 @@ class ThroneTrackerCog(commands.Cog):
             except (discord.NotFound, discord.HTTPException):
                 domme = None
         try:
-            content = embeds.throne_send_log_message(send, domme)
-            await channel.send(
-                content=content,
-                allowed_mentions=discord.AllowedMentions(users=True),
-            )
+            await channel.send(embed=embeds.throne_send_log_embed(send, domme))
         except discord.HTTPException:
             log.exception(
-                "Failed to post send notification for send id %s in channel %s.",
+                "Failed to post send embed for send id %s in channel %s.",
                 send_id,
                 self.config.send_track_channel_id,
             )

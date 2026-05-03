@@ -424,15 +424,14 @@ def domme_setup_intro_embed() -> discord.Embed:
 
 
 def domme_setup_name_embed(*, name: str | None, honorific: str | None) -> discord.Embed:
-    """Kept for back-compat; main flow now uses domme_setup_details_embed."""
     embed = _styled_embed(
         title=messages.DOMME_SETUP_NAME_TITLE,
         description=messages.DOMME_SETUP_NAME_DESCRIPTION,
         color=PINK,
     )
-    embed.add_field(name="Name", value=_profile_value(name), inline=True)
-    embed.add_field(name="Honorific", value=_profile_value(honorific), inline=True)
-    embed.set_footer(text="The Butler • Step 1/3")
+    embed.add_field(name="Name", value=_profile_value(name), inline=False)
+    embed.add_field(name="Honorific", value=_profile_value(honorific), inline=False)
+    embed.set_footer(text="The Butler • Step 1/4")
     return embed
 
 
@@ -443,20 +442,18 @@ def domme_setup_details_embed(
     tribute_price: str | None,
     kinks: str | None,
     limits: str | None,
-    name: str | None = None,
-    honorific: str | None = None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_DETAILS_TITLE,
         description=messages.DOMME_SETUP_DETAILS_DESCRIPTION,
-        color=PINK,
+        color=PURPLE,
     )
-    embed.add_field(name="Name", value=_profile_value(name), inline=True)
-    embed.add_field(name="Honorific", value=_profile_value(honorific), inline=True)
-    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=True)
+    embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=False)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
     embed.add_field(name="Tribute Fee Price", value=_profile_value(tribute_price), inline=True)
-    embed.set_footer(text="The Butler • Step 1/3")
+    embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
+    embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
+    embed.set_footer(text="The Butler • Step 2/4")
     return embed
 
 
@@ -472,8 +469,6 @@ def domme_setup_links_embed(
     content_link2: str | None,
     content_link3: str | None,
     content_link4: str | None,
-    kinks: str | None = None,
-    limits: str | None = None,
 ) -> discord.Embed:
     embed = _styled_embed(
         title=messages.DOMME_SETUP_PAYMENTS_TITLE,
@@ -502,11 +497,7 @@ def domme_setup_links_embed(
         value="\n".join(content_lines) if content_lines else "Not provided",
         inline=False,
     )
-    if _has_value(kinks):
-        embed.add_field(name="✨ Kinks", value=kinks, inline=False)
-    if _has_value(limits):
-        embed.add_field(name="🚫 Limits", value=limits, inline=False)
-    embed.set_footer(text="The Butler • Step 2/3")
+    embed.set_footer(text="The Butler • Step 3/4")
     return embed
 
 
@@ -534,7 +525,7 @@ def domme_setup_color_embed(*, profile_color: int) -> discord.Embed:
         color=color,
     )
     embed.add_field(name="Selected Color", value=label, inline=False)
-    embed.set_footer(text="The Butler • Step 3/3")
+    embed.set_footer(text="The Butler • Step 4/4")
     return embed
 
 
@@ -660,12 +651,12 @@ def domme_profile_embed(
     # Build identity description — only include fields with values
     identity_parts: list[str] = []
     if _has_value(profile.honorific):
-        identity_parts.append(profile.honorific)
+        identity_parts.append(f"**Honorific:** {profile.honorific}")
     if _has_value(profile.name):
-        identity_parts.append(f"**{profile.name}**")
+        identity_parts.append(f"**Name:** {profile.name}")
     if _has_value(profile.pronouns):
-        identity_parts.append(profile.pronouns)
-    identity_parts.append("✅ age verified" if is_verified else "❌ age unverified")
+        identity_parts.append(f"**Pronouns:** {profile.pronouns}")
+    identity_parts.append("Age Verified ✅" if is_verified else "Age Verified ❌")
 
     embed = discord.Embed(
         title=f"✦ {display_name}",
@@ -677,15 +668,15 @@ def domme_profile_embed(
     # Details — only show if at least one is set
     details_parts: list[str] = []
     if _has_value(profile.age):
-        details_parts.append(f"age: **{profile.age}**")
+        details_parts.append(f"**Age:** {profile.age}")
     if _has_value(profile.tribute_price):
-        details_parts.append(f"tribute: **{profile.tribute_price}**")
+        details_parts.append(f"**Tribute:** {profile.tribute_price}")
     if details_parts:
         embed.add_field(name="Details", value="\n".join(details_parts), inline=False)
 
     # Throne — shown separately at the top of links
     if _has_value(profile.throne):
-        embed.add_field(name="🏰 Throne", value=profile.throne, inline=False)
+        embed.add_field(name="Throne", value=profile.throne, inline=False)
 
     # Payment links — smart-labelled
     pay_lines = [
@@ -698,7 +689,7 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if pay_lines:
-        _add_chunked_field(embed, name="💸 Payment Links", lines=pay_lines)
+        _add_chunked_field(embed, name="Payment Links", lines=pay_lines)
 
     # Content links — smart-labelled
     content_lines = [
@@ -711,13 +702,13 @@ def domme_profile_embed(
         if (line := _smart_link_line(url))
     ]
     if content_lines:
-        _add_chunked_field(embed, name="🎬 Content Links", lines=content_lines)
+        _add_chunked_field(embed, name="Content Links", lines=content_lines)
 
     # Kinks & Limits
     if _has_value(profile.kinks):
-        embed.add_field(name="✨ Kinks", value=profile.kinks, inline=False)
+        embed.add_field(name="Kinks", value=profile.kinks, inline=False)
     if _has_value(profile.limits):
-        embed.add_field(name="🚫 Limits", value=profile.limits, inline=False)
+        embed.add_field(name="Limits", value=profile.limits, inline=False)
 
     # Throne tracking badge
     if profile.throne_tracking_enabled:
@@ -732,13 +723,6 @@ def domme_profile_embed(
     return embed
 
 
-_RANK_MEDALS = {1: "🥇", 2: "🥈", 3: "🥉"}
-
-
-def _rank_prefix(position: int) -> str:
-    return _RANK_MEDALS.get(position, f"**{position}.**")
-
-
 def domme_send_leaderboard_embed(
     sends: list[ThroneSend],
     member: discord.Member | discord.User,
@@ -746,7 +730,7 @@ def domme_send_leaderboard_embed(
     """Personal leaderboard embed shown to a Domme for sends they've received."""
     display_name = member.display_name if isinstance(member, discord.Member) else member.name
     embed = discord.Embed(
-        title=f"{display_name}'s Sends Leaderboard",
+        title=f"💸 {display_name}'s Sends Leaderboard",
         color=PURPLE,
     )
     if not sends:
@@ -773,23 +757,25 @@ def domme_send_leaderboard_embed(
             if send.claimed_sub_user_id:
                 labels[key] = f"<@{send.claimed_sub_user_id}>"
             elif send.sub_throne_name:
-                labels[key] = f"{send.sub_throne_name} *(unclaimed)*"
+                labels[key] = f"{send.sub_throne_name} *(Unclaimed)*"
             else:
-                labels[key] = "*unclaimed*"
+                labels[key] = "*Unclaimed*"
 
     sorted_entries = sorted(
         counts.items(),
-        key=lambda x: (totals[x[0]], x[1]),
+        key=lambda x: (x[1], totals[x[0]]),
         reverse=True,
     )
     lines = []
-    for position, (key, count) in enumerate(sorted_entries[:20], start=1):
+    for key, count in sorted_entries[:20]:
         total = totals[key]
         send_word = "send" if count == 1 else "sends"
-        amount = f"**${total:,.2f}**" if total > 0 else "*(private)*"
-        lines.append(f"{_rank_prefix(position)} {labels[key]} — {amount} ({count} {send_word})")
+        if total > 0:
+            lines.append(f"**{labels[key]}** — {count} {send_word} (${total:,.2f})")
+        else:
+            lines.append(f"**{labels[key]}** — {count} {send_word}")
     total_all = sum(totals.values())
-    embed.description = "**Sub — Amount (Sends)**\n" + ("\n".join(lines) if lines else "No sends recorded yet.")
+    embed.description = "\n".join(lines) if lines else "No sends recorded yet."
     total_count = sum(counts.values())
     if total_all > 0:
         footer = f"Total sends: {total_count} • Total received: ${total_all:,.2f}"
@@ -805,7 +791,7 @@ def server_leaderboard_embed(
 ) -> discord.Embed:
     """Server-wide leaderboard embed (updated every 5 minutes)."""
     embed = discord.Embed(
-        title="Server Sends Leaderboard",
+        title="🏆 Server Sends Leaderboard",
         color=PURPLE,
         timestamp=datetime.now(timezone.utc),
     )
@@ -815,51 +801,24 @@ def server_leaderboard_embed(
         return embed
 
     lines: list[str] = []
-    lines.append("**Sub → Domme — Amount**")
-    for position, row in enumerate(rows, start=1):
+    for row in rows:
         if row.claimed_sub_user_id:
             sub_label = f"<@{row.claimed_sub_user_id}>"
         elif row.sub_throne_name:
-            sub_label = f"{row.sub_throne_name} *(unclaimed)*"
+            sub_label = f"{row.sub_throne_name} *(Unclaimed)*"
         else:
-            sub_label = "*unclaimed*"
+            sub_label = "*Unclaimed*"
         domme_label = f"<@{row.domme_user_id}>"
-        amount = f"**${row.total_usd:,.2f}**" if row.total_usd > 0 else "*(private)*"
-        lines.append(f"{_rank_prefix(position)} {sub_label} → {domme_label} — {amount}")
+        send_word = "send" if row.send_count == 1 else "sends"
+        if row.total_usd > 0:
+            score = f"**{row.send_count} {send_word}** (${row.total_usd:,.2f})"
+        else:
+            score = f"**{row.send_count} {send_word}**"
+        lines.append(f"{sub_label} ~ {domme_label}     {score}")
 
     embed.description = "\n".join(lines)
     embed.set_footer(text="The Drain Server • Updates every 5 minutes")
     return embed
-
-
-def throne_send_log_message(
-    send: ThroneSend,
-    domme: discord.Member | discord.User | None,
-) -> str:
-    """Plain-text message posted to the sends channel when a send is logged.
-
-    Mentions are placed in the message content (not an embed) so that both
-    the Domme and the sub receive a Discord push notification.
-    """
-    domme_mention = domme.mention if domme else f"<@{send.domme_user_id}>"
-    if send.claimed_sub_user_id:
-        sub_part = f"<@{send.claimed_sub_user_id}>"
-        if send.sub_throne_name:
-            sub_part += f" ({send.sub_throne_name})"
-    elif send.sub_throne_name:
-        sub_part = f"**{send.sub_throne_name}** *(unclaimed)*"
-    else:
-        sub_part = "*unclaimed*"
-
-    if send.is_private:
-        amount_part = "*(private amount)*"
-    else:
-        amount_part = f"**${send.amount_usd:,.2f}**"
-
-    msg = f"{sub_part} → {domme_mention} — {amount_part}"
-    if send.item_name:
-        msg += f"\n{send.item_name}"
-    return msg
 
 
 def throne_send_log_embed(
@@ -910,12 +869,12 @@ def sub_profile_embed(
     # Build description with identity fields
     identity_parts: list[str] = []
     if _has_value(profile.name):
-        identity_parts.append(f"**{profile.name}**")
+        identity_parts.append(f"**Name:** {profile.name}")
     if _has_value(profile.pronouns):
-        identity_parts.append(profile.pronouns)
+        identity_parts.append(f"**Pronouns:** {profile.pronouns}")
     if _has_value(profile.age):
-        identity_parts.append(f"age: **{profile.age}**")
-    identity_parts.append("age verified" if is_verified else "age unverified")
+        identity_parts.append(f"**Age:** {profile.age}")
+    identity_parts.append("Age Verified ✅" if is_verified else "Age Verified ❌")
 
     color = discord.Color(profile.profile_color) if profile.profile_color else SOFT_DARK
     embed = discord.Embed(
@@ -929,9 +888,9 @@ def sub_profile_embed(
         embed.add_field(name="Throne Name", value=profile.throne_name, inline=True)
 
     if rank is not None:
-        embed.add_field(name="Rank", value=f"#{rank}", inline=True)
+        embed.add_field(name="Leaderboard Rank", value=f"#{rank}", inline=True)
     elif profile.throne_name:
-        embed.add_field(name="Rank", value="Unranked", inline=True)
+        embed.add_field(name="Leaderboard Rank", value="Unranked", inline=True)
 
     if owned_by_member is not None:
         embed.add_field(name="Owned By", value=owned_by_member.mention, inline=False)
@@ -962,23 +921,32 @@ def sub_setup_intro_embed() -> discord.Embed:
     return embed
 
 
-def sub_setup_profile_embed(
+def sub_setup_name_embed(*, throne_name: str | None) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_NAME_TITLE,
+        description=messages.SUB_SETUP_NAME_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Your Throne Name", value=_profile_value(throne_name), inline=False)
+    embed.set_footer(text="The Butler • Step 1/6")
+    return embed
+
+
+def sub_setup_details_embed(
     *,
-    throne_name: str | None,
     name: str | None,
     pronouns: str | None,
     age: str | None,
 ) -> discord.Embed:
     embed = _styled_embed(
-        title=messages.SUB_SETUP_PROFILE_TITLE,
-        description=messages.SUB_SETUP_PROFILE_DESCRIPTION,
+        title=messages.SUB_SETUP_DETAILS_TITLE,
+        description=messages.SUB_SETUP_DETAILS_DESCRIPTION,
         color=SOFT_DARK,
     )
-    embed.add_field(name="Throne Name", value=_profile_value(throne_name), inline=True)
-    embed.add_field(name="Name", value=_profile_value(name), inline=True)
+    embed.add_field(name="Name", value=_profile_value(name), inline=False)
     embed.add_field(name="Pronouns", value=_profile_value(pronouns), inline=True)
     embed.add_field(name="Age", value=_profile_value(age), inline=True)
-    embed.set_footer(text="The Butler • Step 1/3")
+    embed.set_footer(text="The Butler • Step 2/6")
     return embed
 
 
@@ -994,15 +962,11 @@ def sub_setup_kinks_limits_embed(
     )
     embed.add_field(name="Kinks", value=_profile_value(kinks), inline=False)
     embed.add_field(name="Limits", value=_profile_value(limits), inline=False)
-    embed.set_footer(text="The Butler • Step 2/3 (optional)")
+    embed.set_footer(text="The Butler • Step 3/6")
     return embed
 
 
-def sub_setup_color_owner_embed(
-    *,
-    profile_color: int,
-    owned_by_label: str,
-) -> discord.Embed:
+def sub_setup_color_embed(*, profile_color: int) -> discord.Embed:
     color = discord.Color(profile_color)
     label = next(
         (lbl for val, _emoji, lbl in PROFILE_COLOR_PRESETS if val == profile_color),
@@ -1013,9 +977,19 @@ def sub_setup_color_owner_embed(
         description=messages.SUB_SETUP_COLOR_DESCRIPTION,
         color=color,
     )
-    embed.add_field(name="Selected Colour", value=label, inline=True)
-    embed.add_field(name="Owned By", value=owned_by_label, inline=True)
-    embed.set_footer(text="The Butler • Step 3/3")
+    embed.add_field(name="Selected Colour", value=label, inline=False)
+    embed.set_footer(text="The Butler • Step 4/6")
+    return embed
+
+
+def sub_setup_owner_embed(*, owned_by_label: str) -> discord.Embed:
+    embed = _styled_embed(
+        title=messages.SUB_SETUP_OWNER_TITLE,
+        description=messages.SUB_SETUP_OWNER_DESCRIPTION,
+        color=SOFT_DARK,
+    )
+    embed.add_field(name="Currently Selected", value=owned_by_label, inline=False)
+    embed.set_footer(text="The Butler • Step 5/6")
     return embed
 
 
@@ -1055,7 +1029,7 @@ def sub_setup_review_embed(
         embed.add_field(name="Kinks", value=kinks, inline=False)
     if _has_value(limits):
         embed.add_field(name="Limits", value=limits, inline=False)
-    embed.set_footer(text="The Butler • Review — Ready to save")
+    embed.set_footer(text="The Butler • Step 6/6 — Ready to save")
     return embed
 
 
