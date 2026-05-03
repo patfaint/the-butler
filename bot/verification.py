@@ -412,13 +412,13 @@ class VerificationService:
         unverified_role = member.guild.get_role(self.config.unverified_role_id)
         if unverified_role is None:
             log.warning("Configured Unverified role was not found.")
-            return
-        try:
-            await member.add_roles(unverified_role, reason="The Butler welcome verification")
-        except discord.Forbidden:
-            log.warning("Missing permission to assign Unverified role to %s.", member.id)
-        except discord.HTTPException:
-            log.exception("Failed to assign Unverified role to %s.", member.id)
+        else:
+            try:
+                await member.add_roles(unverified_role, reason="The Butler welcome verification")
+            except discord.Forbidden:
+                log.warning("Missing permission to assign Unverified role to %s.", member.id)
+            except discord.HTTPException:
+                log.exception("Failed to assign Unverified role to %s.", member.id)
 
         channel = await resolve_message_channel(self.bot, member.guild, self.config.welcome_channel_id)
         if channel is None:
