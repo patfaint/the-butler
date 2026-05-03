@@ -101,7 +101,7 @@ class ReactionRoleService:
 
     _CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
     _HEX_COLOR_RE = re.compile(r"^[0-9a-fA-F]{6}$")
-    _MAX_UNICODE_EMOJI_LENGTH = 32
+    _MAX_UNICODE_EMOJI_LENGTH = 32  # Guardrail against malformed, non-emoji long strings.
 
     def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
         self.bot = bot
@@ -345,6 +345,7 @@ class ReactionRoleService:
         if not parsed:
             return "Please provide at least one emoji-to-role mapping."
         # Keep this capped so messages remain readable/manageable.
+        # Keep this capped for message readability and manageable setup UX.
         if len(parsed) > 20:
             return "Please keep reaction-role mappings to 20 or fewer."
         return parsed
@@ -1849,6 +1850,7 @@ class VerificationCog(commands.Cog):
 
     @commands.command(name="resync")
     async def resync(self, ctx: commands.Context[commands.Bot], mode: str | None = None) -> None:
+        """Admin/dev command to sync app commands (`guild`, `clear`, or `global`)."""
         if ctx.guild is None or not isinstance(ctx.author, discord.Member):
             await ctx.reply("This command can only be used in a server.", mention_author=False)
             return
