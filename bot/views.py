@@ -236,7 +236,7 @@ class HelpView(discord.ui.View):
         self.total_pages = max(1, len(self.pages))
 
         self.previous_button = discord.ui.Button(
-            label="<",
+            label="Previous",
             style=discord.ButtonStyle.secondary,
             custom_id=f"help:previous:{user_id}",
         )
@@ -251,7 +251,7 @@ class HelpView(discord.ui.View):
         self.add_item(self.page_button)
 
         self.next_button = discord.ui.Button(
-            label=">",
+            label="Next",
             style=discord.ButtonStyle.secondary,
             custom_id=f"help:next:{user_id}",
         )
