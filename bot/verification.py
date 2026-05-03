@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import sqlite3
 import time
 from dataclasses import dataclass
@@ -37,6 +38,7 @@ from bot.views import (
     DommeSetupThroneView,
     FormLinkView,
     HelpView,
+    ReactionRoleSetupModal,
     RoleSelectionView,
     StaffReviewView,
     SubDeleteConfirmView,
@@ -51,6 +53,7 @@ from bot.views import (
 )
 
 log = logging.getLogger(__name__)
+_CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
 
 
 @dataclass
@@ -94,6 +97,276 @@ class SubProfileSession:
     owned_by_domme_user_id: int | None = None
 
 
+class ReactionRoleService:
+    def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
+        self.bot = bot
+        self.config = config
+        self.database = database
+
+    async def create_message_from_modal(
+        self,
+        *,
+        interaction: discord.Interaction,
+        channel_id_raw: str,
+        title: str,
+        description: str,
+        color_raw: str,
+        mappings_raw: str,
+    ) -> None:
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message(
+                "This setup can only be used inside the server.",
+                ephemeral=True,
+            )
+            return
+
+        try:
+            channel_id = int(channel_id_raw.strip())
+        except ValueError:
+            await interaction.response.send_message("Channel ID must be a number.", ephemeral=True)
+            return
+
+        channel = await resolve_message_channel(self.bot, interaction.guild, channel_id)
+        if not isinstance(channel, discord.TextChannel):
+            await interaction.response.send_message(
+                "The target channel must be a server text channel.",
+                ephemeral=True,
+            )
+            return
+
+        role_mappings = self._parse_role_mappings(mappings_raw, interaction.guild)
+        if isinstance(role_mappings, str):
+            await interaction.response.send_message(role_mappings, ephemeral=True)
+            return
+
+        embed_color = self._parse_hex_color(color_raw)
+        if embed_color is None:
+            await interaction.response.send_message(
+                "Embed colour must be a valid hex value like #B565FF.",
+                ephemeral=True,
+            )
+            return
+
+        bot_member = interaction.guild.me or interaction.guild.get_member(self.bot.user.id) if self.bot.user else None
+        if bot_member is None:
+            await interaction.response.send_message(
+                "I couldn't resolve my server member permissions right now.",
+                ephemeral=True,
+            )
+            return
+        if not channel.permissions_for(bot_member).send_messages:
+            await interaction.response.send_message(
+                "I don't have permission to send messages in that channel.",
+                ephemeral=True,
+            )
+            return
+        if not channel.permissions_for(bot_member).add_reactions:
+            await interaction.response.send_message(
+                "I need Add Reactions permission in that channel.",
+                ephemeral=True,
+            )
+            return
+        if not channel.permissions_for(bot_member).manage_roles:
+            await interaction.response.send_message(
+                "I need Manage Roles permission to run reaction roles.",
+                ephemeral=True,
+            )
+            return
+
+        for _emoji_key, emoji_display, role in role_mappings:
+            if role >= bot_member.top_role:
+                await interaction.response.send_message(
+                    f"I can't manage {role.mention} because it's above my top role.",
+                    ephemeral=True,
+                )
+                return
+            if role.is_default():
+                await interaction.response.send_message(
+                    "You can't use @everyone as a reaction role target.",
+                    ephemeral=True,
+                )
+                return
+
+        embed = embeds.reaction_role_embed(
+            title=title.strip(),
+            description=description.strip(),
+            color=embed_color,
+            mappings=[(emoji_display, role.mention) for _k, emoji_display, role in role_mappings],
+            creator=interaction.user,
+        )
+
+        try:
+            message = await channel.send(embed=embed)
+        except discord.HTTPException:
+            log.exception("Failed to send reaction-role setup message.")
+            await interaction.response.send_message(
+                "I couldn't send the reaction-role message to that channel.",
+                ephemeral=True,
+            )
+            return
+
+        # Ensure all mapped reactions are present on the message.
+        for _emoji_key, emoji_display, _role in role_mappings:
+            try:
+                reaction_emoji: str | discord.PartialEmoji
+                if emoji_display.startswith("<"):
+                    reaction_emoji = discord.PartialEmoji.from_str(emoji_display)
+                else:
+                    reaction_emoji = emoji_display
+                await message.add_reaction(reaction_emoji)
+            except (discord.HTTPException, ValueError):
+                log.warning(
+                    "Failed to add reaction %s to message %s.",
+                    emoji_display,
+                    message.id,
+                )
+
+        for emoji_key, emoji_display, role in role_mappings:
+            await self.database.upsert_reaction_role_binding(
+                guild_id=interaction.guild.id,
+                channel_id=channel.id,
+                message_id=message.id,
+                emoji_key=emoji_key,
+                emoji_display=emoji_display,
+                role_id=role.id,
+                created_by=interaction.user.id,
+            )
+
+        await interaction.response.send_message(
+            embed=embeds.reaction_role_created_embed(message.jump_url, channel, role_mappings),
+            ephemeral=True,
+        )
+
+    async def handle_raw_reaction_event(
+        self,
+        payload: discord.RawReactionActionEvent,
+        *,
+        added: bool,
+    ) -> None:
+        if payload.guild_id is None:
+            return
+        if self.bot.user and payload.user_id == self.bot.user.id:
+            return
+
+        guild = self.bot.get_guild(payload.guild_id)
+        if guild is None:
+            return
+
+        emoji_key = self._emoji_key_from_partial(payload.emoji)
+        binding = await self.database.get_reaction_role_binding(
+            guild_id=payload.guild_id,
+            message_id=payload.message_id,
+            emoji_key=emoji_key,
+        )
+        if binding is None:
+            return
+
+        role = guild.get_role(binding.role_id)
+        if role is None:
+            return
+
+        me = guild.me or guild.get_member(self.bot.user.id) if self.bot.user else None
+        if me is None or not me.guild_permissions.manage_roles or role >= me.top_role:
+            return
+
+        member: discord.Member | None
+        if added and payload.member is not None:
+            member = payload.member
+        else:
+            member = guild.get_member(payload.user_id)
+            if member is None:
+                try:
+                    member = await guild.fetch_member(payload.user_id)
+                except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                    return
+        if member.bot:
+            return
+
+        try:
+            if added and role not in member.roles:
+                await member.add_roles(role, reason="Reaction role added")
+            elif not added and role in member.roles:
+                await member.remove_roles(role, reason="Reaction role removed")
+        except (discord.Forbidden, discord.HTTPException):
+            log.warning(
+                "Failed to %s reaction role %s for member %s.",
+                "add" if added else "remove",
+                role.id,
+                member.id,
+            )
+
+    def _parse_role_mappings(
+        self,
+        mappings_raw: str,
+        guild: discord.Guild,
+    ) -> list[tuple[str, str, discord.Role]] | str:
+        parsed: list[tuple[str, str, discord.Role]] = []
+        seen_keys: set[str] = set()
+
+        for raw_line in mappings_raw.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            if "=" not in line:
+                return f"Invalid mapping `{line}`. Use `emoji = role`."
+            emoji_raw, role_raw = (part.strip() for part in line.split("=", 1))
+            normalized = self._normalize_emoji(emoji_raw)
+            if normalized is None:
+                return f"Invalid emoji `{emoji_raw}`."
+            emoji_key, emoji_display = normalized
+
+            role_id_str = role_raw
+            if role_id_str.startswith("<@&") and role_id_str.endswith(">"):
+                role_id_str = role_id_str[3:-1]
+            try:
+                role_id = int(role_id_str)
+            except ValueError:
+                return f"Invalid role `{role_raw}`. Use a role mention or role ID."
+            role = guild.get_role(role_id)
+            if role is None:
+                return f"I couldn't find role `{role_raw}` in this server."
+            if emoji_key in seen_keys:
+                return f"Emoji `{emoji_display}` is duplicated in your mapping."
+            seen_keys.add(emoji_key)
+            parsed.append((emoji_key, emoji_display, role))
+
+        if not parsed:
+            return "Please provide at least one emoji-to-role mapping."
+        if len(parsed) > 20:
+            return "Please keep reaction-role mappings to 20 lines or fewer."
+        return parsed
+
+    def _parse_hex_color(self, raw: str) -> discord.Color | None:
+        value = raw.strip()
+        if not value:
+            return embeds.PURPLE
+        if value.startswith("#"):
+            value = value[1:]
+        if len(value) != 6 or any(ch not in "0123456789abcdefABCDEF" for ch in value):
+            return None
+        return discord.Color(int(value, 16))
+
+    def _normalize_emoji(self, raw: str) -> tuple[str, str] | None:
+        value = raw.strip()
+        if not value:
+            return None
+        custom = _CUSTOM_EMOJI_RE.match(value)
+        if custom:
+            animated = custom.group(1) == "a"
+            emoji_id = custom.group(3)
+            emoji_name = custom.group(2)
+            display = f"<{'a' if animated else ''}:{emoji_name}:{emoji_id}>"
+            return (f"custom:{emoji_id}", display)
+        if len(value) > 32:
+            return None
+        return (f"unicode:{value}", value)
+
+    def _emoji_key_from_partial(self, emoji: discord.PartialEmoji) -> str:
+        if emoji.id is not None:
+            return f"custom:{emoji.id}"
+        return f"unicode:{emoji.name or ''}"
+
+
 class VerificationService:
     def __init__(
         self,
@@ -119,16 +392,28 @@ class VerificationService:
         if member.bot:
             return
 
+        roles_to_add: list[discord.Role] = []
         unverified_role = member.guild.get_role(self.config.unverified_role_id)
-        if unverified_role:
-            try:
-                await member.add_roles(unverified_role, reason="The Butler welcome verification")
-            except discord.Forbidden:
-                log.warning("Missing permission to assign Unverified role to %s.", member.id)
-            except discord.HTTPException:
-                log.exception("Failed to assign Unverified role to %s.", member.id)
+        if unverified_role is not None:
+            roles_to_add.append(unverified_role)
         else:
             log.warning("Configured Unverified role was not found.")
+        if (
+            self.config.unassigned_role_id
+            and self.config.unassigned_role_id != self.config.unverified_role_id
+        ):
+            unassigned_role = member.guild.get_role(self.config.unassigned_role_id)
+            if unassigned_role is not None:
+                roles_to_add.append(unassigned_role)
+            else:
+                log.warning("Configured Unassigned role was not found.")
+        if roles_to_add:
+            try:
+                await member.add_roles(*roles_to_add, reason="The Butler welcome verification")
+            except discord.Forbidden:
+                log.warning("Missing permission to assign welcome role(s) to %s.", member.id)
+            except discord.HTTPException:
+                log.exception("Failed to assign welcome role(s) to %s.", member.id)
 
         channel = await resolve_message_channel(self.bot, member.guild, self.config.welcome_channel_id)
         if channel is None:
@@ -1470,6 +1755,7 @@ class VerificationCog(commands.Cog):
         self.service = VerificationService(bot, config, database)
         self.domme_service = DommeProfileService(bot, config, database)
         self.sub_service = SubProfileService(bot, config, database)
+        self.reaction_role_service = ReactionRoleService(bot, config, database)
         self.leaderboard_task.start()
 
     def cog_unload(self) -> None:
@@ -1520,6 +1806,14 @@ class VerificationCog(commands.Cog):
     async def on_member_join(self, member: discord.Member) -> None:
         await self.service.handle_member_join(member)
 
+    @commands.Cog.listener()
+    async def on_raw_reaction_add(self, payload: discord.RawReactionActionEvent) -> None:
+        await self.reaction_role_service.handle_raw_reaction_event(payload, added=True)
+
+    @commands.Cog.listener()
+    async def on_raw_reaction_remove(self, payload: discord.RawReactionActionEvent) -> None:
+        await self.reaction_role_service.handle_raw_reaction_event(payload, added=False)
+
     @commands.command(name="setup_verification")
     async def setup_verification(self, ctx: commands.Context[commands.Bot]) -> None:
         await self.service.setup_verification_panel(ctx)
@@ -1535,6 +1829,49 @@ class VerificationCog(commands.Cog):
     @commands.command(name="verify_cleanup")
     async def verify_cleanup(self, ctx: commands.Context[commands.Bot]) -> None:
         await self.service.verify_cleanup(ctx)
+
+    @commands.command(name="resync")
+    async def resync(self, ctx: commands.Context[commands.Bot], mode: str | None = None) -> None:
+        if ctx.guild is None or not isinstance(ctx.author, discord.Member):
+            await ctx.reply("This command can only be used in a server.", mention_author=False)
+            return
+        if not has_admin_command_permissions(ctx.author, self.config):
+            await ctx.reply(messages.UNAUTHORISED_HELP_RESPONSE, mention_author=False)
+            return
+
+        mode_value = (mode or "guild").strip().lower()
+        guild_obj = discord.Object(id=self.config.guild_id)
+
+        try:
+            if mode_value == "global":
+                synced = await self.bot.tree.sync()
+                scope = "global"
+            elif mode_value == "clear":
+                self.bot.tree.clear_commands(guild=guild_obj)
+                await self.bot.tree.sync(guild=guild_obj)
+                self.bot.tree.copy_global_to(guild=guild_obj)
+                synced = await self.bot.tree.sync(guild=guild_obj)
+                scope = "guild (clear + copy global)"
+            else:
+                self.bot.tree.copy_global_to(guild=guild_obj)
+                synced = await self.bot.tree.sync(guild=guild_obj)
+                scope = "guild"
+        except discord.HTTPException:
+            log.exception("Manual command resync failed with mode=%s.", mode_value)
+            await ctx.reply("Resync failed — check logs for details.", mention_author=False)
+            return
+
+        log.info(
+            "Manual resync by %s (%s) mode=%s synced=%s.",
+            ctx.author,
+            ctx.author.id,
+            mode_value,
+            len(synced),
+        )
+        await ctx.reply(
+            f"Resync complete for **{scope}**. Synced **{len(synced)}** command(s).",
+            mention_author=False,
+        )
 
     @commands.command(name="domme")
     async def domme(
@@ -1797,6 +2134,30 @@ class VerificationCog(commands.Cog):
         await interaction.response.send_message(
             "I've sent you a DM to set up your sub profile.",
             ephemeral=True,
+        )
+
+    @app_commands.command(
+        name="reaction_role_setup",
+        description="Mod-only: create a reaction-role embed and mappings.",
+    )
+    async def reaction_role_setup(self, interaction: discord.Interaction) -> None:
+        if interaction.guild is None or not isinstance(interaction.user, discord.Member):
+            await interaction.response.send_message(
+                "This command can only be used in a server.",
+                ephemeral=True,
+            )
+            return
+        if not has_admin_command_permissions(interaction.user, self.config):
+            await interaction.response.send_message(
+                messages.UNAUTHORISED_HELP_RESPONSE,
+                ephemeral=True,
+            )
+            return
+        await interaction.response.send_modal(
+            ReactionRoleSetupModal(
+                self.reaction_role_service,
+                default_channel_id=self.config.roles_channel_id,
+            )
         )
 
     @app_commands.command(
