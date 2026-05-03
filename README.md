@@ -77,7 +77,6 @@ Create these channels before starting the bot:
 Create these roles before starting the bot:
 
 - Unverified
-- Unassigned (optional; set `UNASSIGNED_ROLE_ID` to enable)
 - Verified
 - Domme
 - Submissive
@@ -111,7 +110,6 @@ GENERAL_CHANNEL_ID=
 ROLES_CHANNEL_ID=
 INTRODUCTIONS_CHANNEL_ID=
 UNVERIFIED_ROLE_ID=
-UNASSIGNED_ROLE_ID=
 VERIFIED_ROLE_ID=
 DOMME_ROLE_ID=
 SUBMISSIVE_ROLE_ID=

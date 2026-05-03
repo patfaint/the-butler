@@ -20,7 +20,6 @@ class BotConfig:
     roles_channel_id: int
     introductions_channel_id: int
     unverified_role_id: int
-    unassigned_role_id: int
     verified_role_id: int
     domme_role_id: int
     submissive_role_id: int
@@ -79,7 +78,6 @@ def load_config() -> BotConfig:
         roles_channel_id=channels.ROLES_CHANNEL_ID,
         introductions_channel_id=channels.INTRODUCTIONS_CHANNEL_ID,
         unverified_role_id=channels.UNVERIFIED_ROLE_ID,
-        unassigned_role_id=channels.UNASSIGNED_ROLE_ID,
         verified_role_id=channels.VERIFIED_ROLE_ID,
         domme_role_id=channels.DOMME_ROLE_ID,
         submissive_role_id=channels.SUBMISSIVE_ROLE_ID,

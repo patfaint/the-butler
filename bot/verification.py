@@ -409,28 +409,16 @@ class VerificationService:
         if member.bot:
             return
 
-        roles_to_add: list[discord.Role] = []
         unverified_role = member.guild.get_role(self.config.unverified_role_id)
-        if unverified_role is not None:
-            roles_to_add.append(unverified_role)
-        else:
+        if unverified_role is None:
             log.warning("Configured Unverified role was not found.")
-        if (
-            self.config.unassigned_role_id
-            and self.config.unassigned_role_id != self.config.unverified_role_id
-        ):
-            unassigned_role = member.guild.get_role(self.config.unassigned_role_id)
-            if unassigned_role is not None:
-                roles_to_add.append(unassigned_role)
-            else:
-                log.warning("Configured Unassigned role was not found.")
-        if roles_to_add:
-            try:
-                await member.add_roles(*roles_to_add, reason="The Butler welcome verification")
-            except discord.Forbidden:
-                log.warning("Missing permission to assign welcome role(s) to %s.", member.id)
-            except discord.HTTPException:
-                log.exception("Failed to assign welcome role(s) to %s.", member.id)
+            return
+        try:
+            await member.add_roles(unverified_role, reason="The Butler welcome verification")
+        except discord.Forbidden:
+            log.warning("Missing permission to assign Unverified role to %s.", member.id)
+        except discord.HTTPException:
+            log.exception("Failed to assign Unverified role to %s.", member.id)
 
         channel = await resolve_message_channel(self.bot, member.guild, self.config.welcome_channel_id)
         if channel is None:
