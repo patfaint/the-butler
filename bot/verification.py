@@ -53,7 +53,6 @@ from bot.views import (
 )
 
 log = logging.getLogger(__name__)
-_CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
 
 
 @dataclass
@@ -98,6 +97,8 @@ class SubProfileSession:
 
 
 class ReactionRoleService:
+    _CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
+
     def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
         self.bot = bot
         self.config = config
@@ -147,7 +148,9 @@ class ReactionRoleService:
             )
             return
 
-        bot_member = interaction.guild.me or interaction.guild.get_member(self.bot.user.id) if self.bot.user else None
+        bot_member = interaction.guild.me
+        if bot_member is None and self.bot.user is not None:
+            bot_member = interaction.guild.get_member(self.bot.user.id)
         if bot_member is None:
             await interaction.response.send_message(
                 "I couldn't resolve my server member permissions right now.",
@@ -265,7 +268,9 @@ class ReactionRoleService:
         if role is None:
             return
 
-        me = guild.me or guild.get_member(self.bot.user.id) if self.bot.user else None
+        me = guild.me
+        if me is None and self.bot.user is not None:
+            me = guild.get_member(self.bot.user.id)
         if me is None or not me.guild_permissions.manage_roles or role >= me.top_role:
             return
 
@@ -350,7 +355,7 @@ class ReactionRoleService:
         value = raw.strip()
         if not value:
             return None
-        custom = _CUSTOM_EMOJI_RE.match(value)
+        custom = self._CUSTOM_EMOJI_RE.match(value)
         if custom:
             animated = custom.group(1) == "a"
             emoji_id = custom.group(3)

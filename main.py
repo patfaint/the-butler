@@ -46,7 +46,6 @@ class ButlerBot(commands.Bot):
         if self.config.guild_id:
             guild = discord.Object(id=self.config.guild_id)
             self.tree.clear_commands(guild=guild)
-            await self.tree.sync(guild=guild)
             self.tree.copy_global_to(guild=guild)
             synced = await self.tree.sync(guild=guild)
             logging.info("Synced %s guild command(s).", len(synced))
