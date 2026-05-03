@@ -435,7 +435,7 @@ def reaction_role_embed(
         color=color,
         timestamp=datetime.now(timezone.utc),
     )
-    lines = [f"{emoji}  →  {role_mention}" for emoji, role_mention in mappings]
+    lines = [f"{emoji} = {role_mention}" for emoji, role_mention in mappings]
     embed.add_field(name="Role Reactions", value="\n".join(lines), inline=False)
     _set_butler_footer(embed, f"Reaction roles • Setup by {creator.name}")
     return embed
