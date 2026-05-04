@@ -166,6 +166,33 @@ class LeaderboardRow:
     send_count: int
 
 
+@dataclass(frozen=True)
+class ReactionRoleBinding:
+    id: int
+    guild_id: int
+    channel_id: int
+    message_id: int
+    emoji_key: str
+    emoji_display: str
+    role_id: int
+    created_by: int
+    created_at: str
+
+    @classmethod
+    def from_row(cls, row: aiosqlite.Row) -> "ReactionRoleBinding":
+        return cls(
+            id=row["id"],
+            guild_id=row["guild_id"],
+            channel_id=row["channel_id"],
+            message_id=row["message_id"],
+            emoji_key=row["emoji_key"],
+            emoji_display=row["emoji_display"],
+            role_id=row["role_id"],
+            created_by=row["created_by"],
+            created_at=row["created_at"],
+        )
+
+
 class Database:
     def __init__(self, path: Path) -> None:
         self.path = path
@@ -268,6 +295,25 @@ class Database:
                 message_id INTEGER NOT NULL,
                 channel_id INTEGER NOT NULL
             );
+
+            CREATE TABLE IF NOT EXISTS reaction_role_bindings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                guild_id INTEGER NOT NULL,
+                channel_id INTEGER NOT NULL,
+                message_id INTEGER NOT NULL,
+                emoji_key TEXT NOT NULL,
+                emoji_display TEXT NOT NULL,
+                role_id INTEGER NOT NULL,
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL,
+                UNIQUE(message_id, emoji_key)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_reaction_role_message
+            ON reaction_role_bindings(message_id);
+
+            CREATE INDEX IF NOT EXISTS idx_reaction_role_role
+            ON reaction_role_bindings(role_id);
 
             UPDATE verification_requests
             SET reviewed_by = NULL
@@ -927,6 +973,101 @@ class Database:
         ):
             pass
         await self.connection.commit()
+
+    async def upsert_reaction_role_binding(
+        self,
+        *,
+        guild_id: int,
+        channel_id: int,
+        message_id: int,
+        emoji_key: str,
+        emoji_display: str,
+        role_id: int,
+        created_by: int,
+    ) -> None:
+        async with self.connection.execute(
+            """
+            INSERT INTO reaction_role_bindings (
+                guild_id, channel_id, message_id, emoji_key, emoji_display, role_id, created_by, created_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(message_id, emoji_key) DO UPDATE SET
+                guild_id = excluded.guild_id,
+                channel_id = excluded.channel_id,
+                emoji_display = excluded.emoji_display,
+                role_id = excluded.role_id,
+                created_by = excluded.created_by
+            """,
+            (
+                guild_id,
+                channel_id,
+                message_id,
+                emoji_key,
+                emoji_display,
+                role_id,
+                created_by,
+                _utc_now(),
+            ),
+        ):
+            pass
+        await self.connection.commit()
+
+    async def get_reaction_role_binding(
+        self,
+        *,
+        guild_id: int,
+        message_id: int,
+        emoji_key: str,
+    ) -> ReactionRoleBinding | None:
+        async with self.connection.execute(
+            """
+            SELECT *
+            FROM reaction_role_bindings
+            WHERE guild_id = ? AND message_id = ? AND emoji_key = ?
+            LIMIT 1
+            """,
+            (guild_id, message_id, emoji_key),
+        ) as cursor:
+            row = await cursor.fetchone()
+        if row is None:
+            return None
+        return ReactionRoleBinding.from_row(row)
+
+    async def get_reaction_role_bindings_for_message(
+        self,
+        *,
+        guild_id: int,
+        message_id: int,
+    ) -> list[ReactionRoleBinding]:
+        async with self.connection.execute(
+            """
+            SELECT *
+            FROM reaction_role_bindings
+            WHERE guild_id = ? AND message_id = ?
+            ORDER BY id ASC
+            """,
+            (guild_id, message_id),
+        ) as cursor:
+            rows = await cursor.fetchall()
+        return [ReactionRoleBinding.from_row(row) for row in rows]
+
+    async def remove_reaction_role_binding(
+        self,
+        *,
+        guild_id: int,
+        message_id: int,
+        emoji_key: str,
+    ) -> bool:
+        async with self.connection.execute(
+            """
+            DELETE FROM reaction_role_bindings
+            WHERE guild_id = ? AND message_id = ? AND emoji_key = ?
+            """,
+            (guild_id, message_id, emoji_key),
+        ) as cursor:
+            deleted = cursor.rowcount > 0
+        await self.connection.commit()
+        return deleted
 
     async def get_all_domme_profiles(self) -> list["DommeProfile"]:
         """Return all saved domme profiles, ordered by creation date."""
