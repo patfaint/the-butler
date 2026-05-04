@@ -101,6 +101,7 @@ class ReactionRoleService:
 
     _CUSTOM_EMOJI_RE = re.compile(r"^<(a?):([a-zA-Z0-9_]{2,32}):(\d+)>$")
     _HEX_COLOR_RE = re.compile(r"^[0-9a-fA-F]{6}$")
+    _MAX_REACTION_ROLE_MAPPINGS = 20
     _MAX_UNICODE_EMOJI_LENGTH = 32  # Guardrail against malformed, non-emoji long strings.
 
     def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
@@ -345,8 +346,11 @@ class ReactionRoleService:
         if not parsed:
             return "Please provide at least one emoji-to-role mapping."
         # Keep this capped for message readability and manageable setup UX.
-        if len(parsed) > 20:
-            return "Please keep reaction-role mappings to 20 or fewer."
+        if len(parsed) > self._MAX_REACTION_ROLE_MAPPINGS:
+            return (
+                "Please keep reaction-role mappings to "
+                f"{self._MAX_REACTION_ROLE_MAPPINGS} or fewer."
+            )
         return parsed
 
     def _parse_hex_color(self, raw: str) -> discord.Color | None:
