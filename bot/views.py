@@ -200,11 +200,11 @@ class ReactionRoleSetupModal(discord.ui.Modal, title="Create Reaction Role Messa
             placeholder="#B565FF",
         )
         self.mappings_input = discord.ui.TextInput(
-            label="Emoji = Role ID or @Role (one per line)",
+            label="Emoji = Role ID or role mention (one per line)",
             required=True,
             max_length=1000,
             style=discord.TextStyle.paragraph,
-            placeholder="💗 = 1498997125739053087\n🔥 = @SomeRole\n<:custom:1234567890> = 1498997148845478051",
+            placeholder="💗 = 1498997125739053087\n🔥 = <@&1498997103400194191>\n<:custom:1234567890> = 1498997148845478051",
         )
         self.add_item(self.channel_id_input)
         self.add_item(self.title_input)

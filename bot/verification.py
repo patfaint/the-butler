@@ -6,6 +6,7 @@ import random
 import re
 import sqlite3
 import time
+import unicodedata
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
@@ -103,6 +104,7 @@ class ReactionRoleService:
     _HEX_COLOR_RE = re.compile(r"^[0-9a-fA-F]{6}$")
     _MAX_REACTION_ROLE_MAPPINGS = 20
     _MAX_UNICODE_EMOJI_LENGTH = 32  # Guardrail against malformed, non-emoji long strings.
+    _EMOJI_JOINER_MARKERS = {"\u200d", "\ufe0f", "\u20e3"}
 
     def __init__(self, bot: commands.Bot, config: BotConfig, database: Database) -> None:
         self.bot = bot
@@ -126,16 +128,17 @@ class ReactionRoleService:
                 ephemeral=True,
             )
             return
+        await interaction.response.defer(ephemeral=True, thinking=True)
 
         try:
             channel_id = int(channel_id_raw.strip())
         except ValueError:
-            await interaction.response.send_message("Channel ID must be a number.", ephemeral=True)
+            await interaction.followup.send("Channel ID must be a number.", ephemeral=True)
             return
 
         channel = await resolve_message_channel(self.bot, interaction.guild, channel_id)
         if not isinstance(channel, discord.TextChannel):
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "The target channel must be a server text channel.",
                 ephemeral=True,
             )
@@ -143,12 +146,12 @@ class ReactionRoleService:
 
         role_mappings = self._parse_role_mappings(mappings_raw, interaction.guild)
         if isinstance(role_mappings, str):
-            await interaction.response.send_message(role_mappings, ephemeral=True)
+            await interaction.followup.send(role_mappings, ephemeral=True)
             return
 
         embed_color = self._parse_hex_color(color_raw)
         if embed_color is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "Embed colour must be a valid hex value like #B565FF.",
                 ephemeral=True,
             )
@@ -158,39 +161,46 @@ class ReactionRoleService:
         if bot_member is None and self.bot.user is not None:
             bot_member = interaction.guild.get_member(self.bot.user.id)
         if bot_member is None:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "I couldn't resolve my server member permissions right now.",
                 ephemeral=True,
             )
             return
         if not channel.permissions_for(bot_member).send_messages:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "I don't have permission to send messages in that channel.",
                 ephemeral=True,
             )
             return
         if not channel.permissions_for(bot_member).add_reactions:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "I need Add Reactions permission in that channel.",
                 ephemeral=True,
             )
             return
         if not channel.permissions_for(bot_member).manage_roles:
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "I need Manage Roles permission to run reaction roles.",
                 ephemeral=True,
             )
             return
 
+        acting_member = interaction.user
         for _emoji_key, emoji_display, role in role_mappings:
             if role >= bot_member.top_role:
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     f"I can't manage {role.mention} because it's above my top role.",
                     ephemeral=True,
                 )
                 return
+            if interaction.guild.owner_id != acting_member.id and role >= acting_member.top_role:
+                await interaction.followup.send(
+                    f"You can't map {role.mention} because it's above your top role.",
+                    ephemeral=True,
+                )
+                return
             if role.is_default():
-                await interaction.response.send_message(
+                await interaction.followup.send(
                     "You can't use @everyone as a reaction role target.",
                     ephemeral=True,
                 )
@@ -208,14 +218,16 @@ class ReactionRoleService:
             message = await channel.send(embed=embed)
         except discord.HTTPException:
             log.exception("Failed to send reaction-role setup message.")
-            await interaction.response.send_message(
+            await interaction.followup.send(
                 "I couldn't send the reaction-role message to that channel.",
                 ephemeral=True,
             )
             return
 
         # Ensure all mapped reactions are present on the message.
-        for _emoji_key, emoji_display, _role in role_mappings:
+        successful_mappings: list[tuple[str, str, discord.Role]] = []
+        failed_reactions: list[str] = []
+        for emoji_key, emoji_display, role in role_mappings:
             try:
                 reaction_emoji: str | discord.PartialEmoji
                 if emoji_display.startswith("<"):
@@ -223,14 +235,27 @@ class ReactionRoleService:
                 else:
                     reaction_emoji = emoji_display
                 await message.add_reaction(reaction_emoji)
+                successful_mappings.append((emoji_key, emoji_display, role))
             except (discord.HTTPException, ValueError):
+                failed_reactions.append(emoji_display)
                 log.warning(
                     "Failed to add reaction %s to message %s.",
                     emoji_display,
                     message.id,
                 )
 
-        for emoji_key, emoji_display, role in role_mappings:
+        if not successful_mappings:
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                log.warning("Failed to remove reaction-role message %s after setup failure.", message.id)
+            await interaction.followup.send(
+                "I couldn't add any of those reactions. No mappings were saved.",
+                ephemeral=True,
+            )
+            return
+
+        for emoji_key, emoji_display, role in successful_mappings:
             await self.database.upsert_reaction_role_binding(
                 guild_id=interaction.guild.id,
                 channel_id=channel.id,
@@ -241,8 +266,16 @@ class ReactionRoleService:
                 created_by=interaction.user.id,
             )
 
-        await interaction.response.send_message(
-            embed=embeds.reaction_role_created_embed(message.jump_url, channel, role_mappings),
+        warning = None
+        if failed_reactions:
+            failed_list = ", ".join(failed_reactions)
+            warning = (
+                "Some mappings were skipped because reactions could not be added: "
+                f"{failed_list}."
+            )
+        await interaction.followup.send(
+            content=warning,
+            embed=embeds.reaction_role_created_embed(message.jump_url, channel, successful_mappings),
             ephemeral=True,
         )
 
@@ -379,7 +412,24 @@ class ReactionRoleService:
         # Guardrail for unusual pasted content; practical upper bound for unicode emoji strings.
         if len(value) > self._MAX_UNICODE_EMOJI_LENGTH:
             return None
+        if not self._looks_like_unicode_emoji(value):
+            return None
         return (f"unicode:{value}", value)
+
+    def _looks_like_unicode_emoji(self, value: str) -> bool:
+        """Best-effort emoji validation to avoid accepting arbitrary plain text."""
+        if value.isascii():
+            return False
+        if any(char.isspace() for char in value):
+            return False
+        for char in value:
+            if (
+                char in self._EMOJI_JOINER_MARKERS
+                or unicodedata.category(char) in {"So", "Sk"}
+                or ord(char) >= 0x1F000
+            ):
+                return True
+        return False
 
     def _emoji_key_from_partial(self, emoji: discord.PartialEmoji) -> str:
         """Convert a PartialEmoji into the normalized database lookup key."""
@@ -1851,11 +1901,21 @@ class VerificationCog(commands.Cog):
 
         mode_value = (mode or "guild").strip().lower()
         guild_obj = discord.Object(id=self.config.guild_id)
+        valid_modes = {"guild", "clear", "global"}
+        if mode_value not in valid_modes:
+            await ctx.reply(
+                "Invalid mode. Use `!resync guild`, `!resync clear`, or `!resync global`.",
+                mention_author=False,
+            )
+            return
 
         try:
             if mode_value == "global":
-                synced = await self.bot.tree.sync()
-                scope = "global"
+                global_synced = await self.bot.tree.sync()
+                self.bot.tree.copy_global_to(guild=guild_obj)
+                guild_synced = await self.bot.tree.sync(guild=guild_obj)
+                synced = guild_synced
+                scope = f"global + guild mirror ({len(global_synced)} global)"
             elif mode_value == "clear":
                 self.bot.tree.clear_commands(guild=guild_obj)
                 self.bot.tree.copy_global_to(guild=guild_obj)
